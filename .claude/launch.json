@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "whoop-dashboard",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "whoop_mcp", "dashboard"],
+      "port": 8000,
+      "autoPort": false
+    }
+  ]
+}
