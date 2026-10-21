@@ -76,8 +76,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "status":
-        from .auth import load_tokens
         import time
+
+        from .auth import load_tokens
 
         tok = load_tokens()
         print(f"Token file : {config.TOKEN_FILE} ({'present' if tok else 'missing'})")

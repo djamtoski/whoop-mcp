@@ -9,9 +9,10 @@ Fields the public API does not expose directly are derived here and marked as su
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import date, datetime, timedelta, timezone
 from statistics import mean
-from typing import Any, Iterable
+from typing import Any
 
 Record = dict[str, Any]
 

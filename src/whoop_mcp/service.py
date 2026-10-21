@@ -5,7 +5,8 @@ from __future__ import annotations
 import asyncio
 import os
 import time
-from datetime import date, datetime, time as dtime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from datetime import time as dtime
 from typing import Any
 
 from . import analytics as an
