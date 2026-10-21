@@ -133,7 +133,10 @@ export interface LoadWeek {
 
 export interface HistoryAnalytics {
   load: { weeks: LoadWeek[]; last_session: Record<TrainingDiscipline, { date: string | null; days: number | null }>; as_of: string | null }
+  run_zones: { discipline: string; easy_target_pct: number; overall: ZoneSummary; months: (ZoneSummary & { month: string })[] }
 }
+
+export interface ZoneSummary { runs: number; minutes: number[]; pct: number[]; easy_pct: number | null }
 
 export type History =
   | { available: false }

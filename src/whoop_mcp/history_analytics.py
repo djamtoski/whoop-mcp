@@ -56,3 +56,38 @@ def weekly_load(days: list[dict[str, Any]], workouts: list[dict[str, Any]]) -> d
     for k in TRAINING:
         since.setdefault(k, {"date": None, "days": None})
     return {"weeks": out, "last_session": since, "as_of": str(last)}
+
+
+# WHOOP zones are % of max HR: Z1 50-60, Z2 60-70, Z3 70-80, Z4 80-90, Z5 90-100. Zone 0 (below 50 %)
+# is warm-up/standing time and is left out. "Easy" is Z1+Z2; an 80 % easy share is the usual
+# polarised-training guideline for endurance athletes.
+EASY_TARGET_PCT = 80
+
+
+def _zone_summary(minutes: list[float], runs: int) -> dict[str, Any]:
+    total = sum(minutes)
+    pct = [round(100 * m / total, 1) if total else 0.0 for m in minutes]
+    return {"runs": runs, "minutes": [round(m, 1) for m in minutes], "pct": pct,
+            "easy_pct": round(pct[0] + pct[1], 1) if total else None}
+
+
+def run_zones(workouts: list[dict[str, Any]], discipline: str = "run") -> dict[str, Any]:
+    """Time in HR zones 1-5 for one discipline, per month and overall."""
+    months: dict[str, list[float]] = defaultdict(lambda: [0.0] * 5)
+    counts: dict[str, int] = defaultdict(int)
+    for w in workouts:
+        if w["discipline"] != discipline:
+            continue
+        z = (w.get("zones") or [0] * 6)[1:6]
+        if not any(z):
+            continue
+        m = w["date"][:7]
+        counts[m] += 1
+        months[m] = [a + (b or 0) for a, b in zip(months[m], z)]
+    overall = [sum(v[i] for v in months.values()) for i in range(5)]
+    return {
+        "discipline": discipline,
+        "easy_target_pct": EASY_TARGET_PCT,
+        "overall": _zone_summary(overall, sum(counts.values())),
+        "months": [{"month": m, **_zone_summary(months[m], counts[m])} for m in sorted(months)],
+    }

@@ -29,3 +29,21 @@ def test_weekly_load_days_since_each_discipline():
 
 def test_weekly_load_empty():
     assert ha.weekly_load([], [])["weeks"] == []
+
+
+def test_run_zones_drop_zone_zero_and_group_by_month():
+    workouts = [wo("2026-09-03", "run", zones=[30, 10, 30, 10, 0, 0]),
+                wo("2026-09-20", "run", zones=[0, 0, 40, 10, 0, 0]),
+                wo("2026-10-01", "run", zones=[0, 0, 0, 0, 0, 0]),  # no HR data: skipped
+                wo("2026-10-02", "bike", zones=[0, 60, 0, 0, 0, 0])]
+    res = ha.run_zones(workouts)
+    assert [m["month"] for m in res["months"]] == ["2026-09"]
+    sep = res["months"][0]
+    assert sep["runs"] == 2 and sep["minutes"] == [10, 70, 20, 0, 0]
+    assert sep["pct"] == [10.0, 70.0, 20.0, 0.0, 0.0] and sep["easy_pct"] == 80.0
+    assert res["overall"]["runs"] == 2 and res["easy_target_pct"] == 80
+
+
+def test_run_zones_empty():
+    res = ha.run_zones([])
+    assert res["months"] == [] and res["overall"]["easy_pct"] is None
