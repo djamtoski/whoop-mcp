@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { isDemo, useInsights, useSummary } from './api'
 import { CoachFeed } from './components/CoachFeed'
 import { History } from './components/History'
+import { PlanTab } from './components/PlanTab'
 import { StrengthTab } from './components/StrengthTab'
 import { RecoveryGauge } from './components/RecoveryGauge'
 import { SleepCard } from './components/SleepCard'
@@ -12,7 +13,7 @@ import { TrendsCard } from './components/TrendsCard'
 import { WorkoutLog } from './components/WorkoutLog'
 import { LabeledProgressIndicator } from './components/watermelon/labeled-progress-indicator'
 
-const TABS = ['today', 'history', 'strength'] as const
+const TABS = ['today', 'plan', 'strength', 'history'] as const
 type Tab = (typeof TABS)[number]
 
 function useTheme() {
@@ -78,6 +79,7 @@ export default function App() {
 
         {tab === 'history' && <History />}
         {tab === 'strength' && <StrengthTab />}
+        {tab === 'plan' && <PlanTab />}
 
         {tab === 'today' && state.status === 'loading' && (
           <div className="flex min-h-[50vh] items-center justify-center">

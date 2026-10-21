@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Exercise, History, Insight, StrengthSession, StrengthSummary, Summary } from './types'
+import type { Exercise, History, Insight, PlanResponse, StrengthSession, StrengthSummary, Summary } from './types'
 
 type HistoryState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: History }
 
@@ -94,4 +94,21 @@ export async function strengthRequest(method: 'POST' | 'PUT' | 'DELETE', path: s
   const json = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(json.detail ? (typeof json.detail === 'string' ? json.detail : 'Invalid input.') : res.statusText)
   return json
+}
+
+export function usePlan() {
+  const [data, setData] = useState<PlanResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch('/api/plan')
+      if (!r.ok) throw new Error(`plan: ${r.status}`)
+      setData(await r.json())
+      setError(null)
+    } catch (e) {
+      setError(String(e))
+    }
+  }, [])
+  useEffect(() => { load() }, [load])
+  return { data, error, reload: load }
 }

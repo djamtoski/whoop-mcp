@@ -200,3 +200,28 @@ export interface StrengthSummary {
   }
   whoop_sessions: WhoopStrengthSession[]
 }
+
+export interface PlanSettings {
+  race_name: string; race_date: string | null; weekly_hours: number; strength_days: number[] | null
+  long_ride_day: number; long_run_day: number; rest_day: number
+}
+
+export interface PlanSession {
+  sport: TrainingDiscipline; kind: string; minutes: number; intensity: string; description: string; hour: number | null
+  done?: boolean; done_minutes?: number | null
+  adjustment?: { zone: 'green' | 'yellow' | 'red'; action: string; note: string } | null
+}
+
+export interface PlanDay { date: string; weekday: string; rest: boolean; sessions: PlanSession[]; extra?: { sport: string; minutes: number | null }[] }
+
+export interface PlanResponse {
+  settings: PlanSettings
+  habits: { weeks: number; by_day: Record<string, number>[]; hours: Record<string, number> }
+  week: {
+    phase: { name: string; weeks_to_race: number | null; strength_sessions: number; strength_min: number; focus: string }
+    strength_days: number[]; days: PlanDay[]; planned_minutes: Record<TrainingDiscipline, number>
+  }
+  today: string
+  recovery_today: number | null
+  live: boolean
+}
