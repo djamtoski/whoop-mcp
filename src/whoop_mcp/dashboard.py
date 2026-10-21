@@ -202,6 +202,9 @@ if (config.STATIC_DIR / "assets").exists():
 
 @app.get("/{path:path}")
 async def spa(path: str):
+    # An unknown API path must not fall through to the page: the client would try to parse HTML as JSON.
+    if path == "api" or path.startswith("api/"):
+        return JSONResponse({"error": "not_found", "detail": f"No API endpoint /{path}."}, status_code=404)
     index = config.STATIC_DIR / "index.html"
     candidate = (config.STATIC_DIR / path).resolve()
     if path and candidate.is_file() and config.STATIC_DIR.resolve() in candidate.parents:

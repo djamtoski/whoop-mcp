@@ -94,3 +94,10 @@ def test_api_400_detail_is_the_validation_message():
     assert r.status_code == 400 and r.json()["detail"] == "set 1: unknown exercise 9999"
     r = c.put("/api/strength/sessions/42", json={"date": "2026-10-14", "sets": [{"exercise_id": squat_id(), "reps": 5}]})
     assert r.status_code == 400 and r.json()["detail"] == "no session 42"
+
+
+def test_unknown_api_path_is_a_json_404_not_the_page():
+    from whoop_mcp.dashboard import app
+
+    r = TestClient(app, base_url="http://localhost").get("/api/does-not-exist")
+    assert r.status_code == 404 and r.headers["content-type"].startswith("application/json")
