@@ -4,6 +4,7 @@ import { useHistory } from '@/api'
 import type { HistoryDay, HistoryWorkout } from '@/types'
 import { LoadCard } from './LoadCard'
 import { RunZonesCard } from './RunZonesCard'
+import { SleepRecoveryCard } from './SleepRecoveryCard'
 import { Card } from './ui'
 
 type Range = 30 | 90 | 180 | 0
@@ -184,6 +185,8 @@ export function History() {
         <LoadCard load={h.analytics.load} weeks={h.analytics.load.weeks.filter((w) => w.week >= cutoff)} />
         <RunZonesCard zones={h.analytics.run_zones} fromMonth={cutoff.slice(0, 7)} />
       </div>
+
+      <SleepRecoveryCard data={h.analytics.sleep_recovery} from={cutoff} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card title="Recovery" subtitle="Daily score with 7-day average" icon={<BarChart3 className="size-4.5" />}>

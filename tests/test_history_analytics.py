@@ -47,3 +47,23 @@ def test_run_zones_drop_zone_zero_and_group_by_month():
 def test_run_zones_empty():
     res = ha.run_zones([])
     assert res["months"] == [] and res["overall"]["easy_pct"] is None
+
+
+def test_sleep_recovery_buckets_target_and_correlation():
+    days = ([{"date": f"a{i}", "sleep_h": 6.0, "recovery": 50} for i in range(5)]
+            + [{"date": f"b{i}", "sleep_h": 7.8, "recovery": 70} for i in range(5)]
+            + [{"date": f"c{i}", "sleep_h": 9.0, "recovery": 71} for i in range(5)]
+            + [{"date": "d", "sleep_h": 7.0, "recovery": 99},  # 1 night: too few to set the target
+               {"date": "e", "sleep_h": None, "recovery": 60}])
+    res = ha.sleep_recovery(days)
+    assert len(res["points"]) == 16
+    assert [b["nights"] for b in res["buckets"]] == [5, 1, 5, 5]
+    assert res["buckets"][0]["avg_recovery"] == 50.0 and res["buckets"][3]["high"] is None
+    # 7.5-8.5 h averages 70, within 2 points of the best (71), so it is the target
+    assert res["target_h"] == 7.5
+    assert res["correlation"] > 0.5
+
+
+def test_sleep_recovery_without_enough_nights():
+    res = ha.sleep_recovery([{"date": "a", "sleep_h": 8, "recovery": 60}])
+    assert res["target_h"] is None and res["correlation"] is None

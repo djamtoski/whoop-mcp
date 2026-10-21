@@ -134,6 +134,12 @@ export interface LoadWeek {
 export interface HistoryAnalytics {
   load: { weeks: LoadWeek[]; last_session: Record<TrainingDiscipline, { date: string | null; days: number | null }>; as_of: string | null }
   run_zones: { discipline: string; easy_target_pct: number; overall: ZoneSummary; months: (ZoneSummary & { month: string })[] }
+  sleep_recovery: {
+    points: { date: string; sleep_h: number; recovery: number }[]
+    buckets: { low: number; high: number | null; nights: number; avg_recovery: number | null }[]
+    correlation: number | null
+    target_h: number | null
+  }
 }
 
 export interface ZoneSummary { runs: number; minutes: number[]; pct: number[]; easy_pct: number | null }

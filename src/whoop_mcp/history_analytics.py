@@ -58,6 +58,47 @@ def weekly_load(days: list[dict[str, Any]], workouts: list[dict[str, Any]]) -> d
     return {"weeks": out, "last_session": since, "as_of": str(last)}
 
 
+SLEEP_BUCKETS = [(0.0, 6.5), (6.5, 7.5), (7.5, 8.5), (8.5, 24.0)]
+MIN_NIGHTS = 5  # a bucket needs this many nights before it can set the target
+
+
+def _pearson(xs: list[float], ys: list[float]) -> float | None:
+    n = len(xs)
+    if n < 3:
+        return None
+    mx, my = sum(xs) / n, sum(ys) / n
+    sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    sxx = sum((x - mx) ** 2 for x in xs)
+    syy = sum((y - my) ** 2 for y in ys)
+    return round(sxy / (sxx * syy) ** 0.5, 2) if sxx and syy else None
+
+
+def sleep_recovery(days: list[dict[str, Any]]) -> dict[str, Any]:
+    """How the night's sleep (hours asleep) relates to the morning's recovery.
+
+    The suggested target is the shortest sleep bucket whose average recovery is within
+    2 points of the best bucket, so it does not ask for more sleep than pays off.
+    """
+    points = [{"date": d["date"], "sleep_h": d["sleep_h"], "recovery": d["recovery"]}
+              for d in days if d.get("sleep_h") is not None and d.get("recovery") is not None]
+    buckets = []
+    for lo, hi in SLEEP_BUCKETS:
+        rs = [p["recovery"] for p in points if lo <= p["sleep_h"] < hi]
+        buckets.append({"low": lo, "high": None if hi >= 24 else hi, "nights": len(rs),
+                        "avg_recovery": round(sum(rs) / len(rs), 1) if rs else None})
+    usable = [b for b in buckets if b["nights"] >= MIN_NIGHTS]
+    target = None
+    if usable:
+        best = max(b["avg_recovery"] for b in usable)
+        target = next(b["low"] for b in usable if b["avg_recovery"] >= best - 2)
+    return {
+        "points": points,
+        "buckets": buckets,
+        "correlation": _pearson([p["sleep_h"] for p in points], [p["recovery"] for p in points]),
+        "target_h": target,
+    }
+
+
 # WHOOP zones are % of max HR: Z1 50-60, Z2 60-70, Z3 70-80, Z4 80-90, Z5 90-100. Zone 0 (below 50 %)
 # is warm-up/standing time and is left out. "Easy" is Z1+Z2; an 80 % easy share is the usual
 # polarised-training guideline for endurance athletes.

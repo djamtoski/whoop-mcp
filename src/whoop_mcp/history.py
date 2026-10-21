@@ -83,7 +83,8 @@ def build_history() -> dict[str, Any]:
     manifest_path = root / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
     series = [days[k] for k in sorted(days)]
-    analytics = {"load": ha.weekly_load(series, workouts), "run_zones": ha.run_zones(workouts)}
+    analytics = {"load": ha.weekly_load(series, workouts), "run_zones": ha.run_zones(workouts),
+                 "sleep_recovery": ha.sleep_recovery(series)}
     return {
         "available": True,
         "exported_at": manifest.get("exported_at"),
