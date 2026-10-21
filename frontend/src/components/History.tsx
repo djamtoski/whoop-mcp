@@ -182,12 +182,20 @@ export function History() {
         <Stat label="Workouts" value={String(workouts.length)} sub={`${fmt(workouts.reduce((a, w) => a + (w.minutes ?? 0), 0) / 60, 1)} h total`} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[3fr_2fr]">
-        <LoadCard load={h.analytics.load} weeks={h.analytics.load.weeks.filter((w) => w.week >= cutoff)} />
-        <RunZonesCard zones={h.analytics.run_zones} fromMonth={cutoff.slice(0, 7)} />
-      </div>
-
-      <SleepRecoveryCard data={h.analytics.sleep_recovery} from={cutoff} />
+      {/* An older dashboard process may serve this build without the analytics block. */}
+      {h.analytics ? (
+        <>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[3fr_2fr]">
+            <LoadCard load={h.analytics.load} weeks={h.analytics.load.weeks.filter((w) => w.week >= cutoff)} />
+            <RunZonesCard zones={h.analytics.run_zones} fromMonth={cutoff.slice(0, 7)} />
+          </div>
+          <SleepRecoveryCard data={h.analytics.sleep_recovery} from={cutoff} />
+        </>
+      ) : (
+        <p className="rounded-xl border border-[var(--border)] px-4 py-3 text-[13px] text-[var(--ink-2)]">
+          Training load, run intensity and sleep insights need a newer dashboard server. Restart it to load them.
+        </p>
+      )}
 
       <CalendarHeatmap days={h.days} workouts={h.workouts} />
 

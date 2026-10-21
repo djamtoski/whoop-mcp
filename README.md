@@ -89,8 +89,10 @@ The dashboard has two tabs:
   - **Calendar**: one square per day coloured by recovery, strain or sleep, with a dot on training days.
   - Recovery, HRV/RHR, strain and sleep charts, a monthly table and the full workout list.
 
-To preview dashboard changes while Claude Code's MCP server holds port 8000, run a second copy on another port
-(`WHOOP_DASHBOARD_PORT=8001`); restarting the process on 8000 disconnects the MCP tools.
+The MCP server runs the dashboard as a reloading child process, so Python changes under `src/whoop_mcp/` take
+effect on :8000 within a couple of seconds without restarting the MCP server or disconnecting its tools.
+The built frontend is read from disk on every request, so after `npm run build` (or with `npm run watch`) a
+browser refresh shows the new UI.
 
 ## Full-history export
 ```powershell
@@ -120,9 +122,18 @@ Profile → Settings → Data Export. WHOOP emails you a ZIP. Add it to your lat
 
 ## Development
 ```powershell
-.venv\Scripts\python -m pytest            # analytics, OAuth refresh, pagination/401 retry, insights store
-cd frontend; npm run dev                  # Vite on :5173, proxies /api to :8000
+.venv\Scripts\python -m pytest            # analytics, OAuth refresh, pagination/401 retry, insights store, reloader
+.venv\Scripts\python -m whoop_mcp dashboard --reload   # standalone dashboard that restarts on Python changes
+cd frontend; npm run dev                  # Vite on :5173 with hot module reload, proxies /api to :8000
+cd frontend; npm run watch                # rebuild into src/whoop_mcp/static on every save
 ```
+
+Hot reload while the MCP server owns :8000: run a second dashboard on :8001 and point Vite at it.
+```powershell
+$env:WHOOP_DASHBOARD_PORT=8001; .venv\Scripts\python -m whoop_mcp dashboard --reload
+$env:WHOOP_API="http://localhost:8001"; cd frontend; npm run dev
+```
+`.claude/launch.json` has both as `whoop-dashboard-preview` and `whoop-frontend-hmr`.
 
 ### Watermelon UI
 Components come from the `@watermelon` shadcn registry (`frontend/components.json`) and live in

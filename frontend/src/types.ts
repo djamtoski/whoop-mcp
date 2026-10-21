@@ -153,7 +153,7 @@ export type History =
       body: Record<string, number> | null
       days: HistoryDay[]
       workouts: HistoryWorkout[]
-      analytics: HistoryAnalytics
+      analytics?: HistoryAnalytics
       monthly: Record<string, number | string | null>[]
     }
 
