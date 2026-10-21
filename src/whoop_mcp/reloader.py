@@ -43,7 +43,12 @@ def pid_alive(pid: int) -> bool:
         return False
     except PermissionError:
         return True
-    return True
+    # An exited process that nobody has reaped yet (a zombie) still answers signal 0.
+    try:
+        with open(f"/proc/{pid}/stat", encoding="ascii") as f:
+            return f.read().rsplit(")", 1)[1].split()[0] != "Z"
+    except (OSError, IndexError):
+        return True  # no /proc (macOS): signal 0 is the best we have
 
 
 def exit_with_parent(pid: int) -> None:
