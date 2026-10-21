@@ -16,7 +16,9 @@ def main(argv: list[str] | None = None) -> int:
     p_login.add_argument("--no-browser", action="store_true", help="Print the URL instead of opening it")
     p_serve = sub.add_parser("serve", help="Run the MCP server over stdio (default)")
     p_serve.add_argument("--no-dashboard", action="store_true", help="Don't auto-start the web dashboard")
-    sub.add_parser("dashboard", help="Run only the web dashboard")
+    p_dash = sub.add_parser("dashboard", help="Run only the web dashboard")
+    p_dash.add_argument("--reload", action="store_true", help="Restart the dashboard when its Python code changes")
+    p_dash.add_argument("--parent-pid", type=int, help=argparse.SUPPRESS)
     sub.add_parser("status", help="Show token/config status")
     p_export = sub.add_parser("export", help="Export your full WHOOP history (JSON + CSV)")
     p_export.add_argument("--out", help="Output root folder (default: ./exports)")
@@ -41,7 +43,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "dashboard":
         from . import dashboard
 
-        print(f"Dashboard: http://localhost:{config.PORT}  (demo data: http://localhost:{config.PORT}/?demo=1)")
+        print(f"Dashboard: http://localhost:{config.PORT}  (demo data: http://localhost:{config.PORT}/?demo=1)",
+              file=sys.stderr)
+        if args.reload:
+            import os
+
+            from .reloader import supervise
+
+            child = [sys.executable, "-m", "whoop_mcp", "dashboard", "--parent-pid", str(os.getpid())]
+            return supervise(child, parent_pid=args.parent_pid)
+        if args.parent_pid:
+            from .reloader import exit_with_parent
+
+            exit_with_parent(args.parent_pid)
         dashboard.run()
         return 0
 
@@ -93,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
     from .server import mcp
 
     if not getattr(args, "no_dashboard", False):
-        started = dashboard.start_in_background()
+        started = dashboard.start_reloading_subprocess()
         logging.getLogger("whoop_mcp").warning(
             "Dashboard %s at http://localhost:%s", "started" if started else "already running", config.PORT)
     mcp.run(show_banner=False) if _supports_banner(mcp) else mcp.run()

@@ -4,8 +4,24 @@
     {
       "name": "whoop-dashboard",
       "runtimeExecutable": ".venv/Scripts/python.exe",
-      "runtimeArgs": ["-m", "whoop_mcp", "dashboard"],
+      "runtimeArgs": ["-m", "whoop_mcp", "dashboard", "--reload"],
       "port": 8000,
+      "autoPort": false
+    },
+    {
+      "name": "whoop-dashboard-preview",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "whoop_mcp", "dashboard", "--reload"],
+      "env": { "WHOOP_DASHBOARD_PORT": "8001" },
+      "port": 8001,
+      "autoPort": false
+    },
+    {
+      "name": "whoop-frontend-hmr",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "env": { "WHOOP_API": "http://localhost:8001" },
+      "port": 5173,
       "autoPort": false
     }
   ]

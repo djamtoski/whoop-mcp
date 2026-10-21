@@ -112,8 +112,30 @@ def run(host: str = config.HOST, port: int = config.PORT) -> None:
     uvicorn.run(app, host=host, port=port, log_level="warning")
 
 
+def start_reloading_subprocess() -> bool:
+    """Start `dashboard --reload` as a child process if the port is free (used by the MCP server).
+
+    The dashboard then picks up Python changes on its own, without restarting the MCP server.
+    The child exits when this process does. Returns False if something already owns the port.
+    """
+    if not port_free():
+        return False
+    import atexit
+    import os
+    import subprocess
+    import sys
+
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "whoop_mcp", "dashboard", "--reload", "--parent-pid", str(os.getpid())],
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,  # stdout is the MCP protocol channel
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    atexit.register(proc.terminate)
+    return True
+
+
 def start_in_background() -> bool:
-    """Start the dashboard in a daemon thread if the port is free (used by the MCP server).
+    """Start the dashboard in a daemon thread if the port is free (no reload).
 
     Returns False if something (e.g. a standalone dashboard) already owns the port.
     """

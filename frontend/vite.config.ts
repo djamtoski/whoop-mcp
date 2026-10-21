@@ -13,6 +13,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: { '/api': 'http://localhost:8000' },
+    // WHOOP_API points the dev server at another dashboard, e.g. the preview copy on :8001.
+    proxy: { '/api': process.env.WHOOP_API ?? 'http://localhost:8000' },
   },
 })

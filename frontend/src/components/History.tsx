@@ -2,6 +2,10 @@ import { BarChart3 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useHistory } from '@/api'
 import type { HistoryDay, HistoryWorkout } from '@/types'
+import { CalendarHeatmap } from './CalendarHeatmap'
+import { LoadCard } from './LoadCard'
+import { RunZonesCard } from './RunZonesCard'
+import { SleepRecoveryCard } from './SleepRecoveryCard'
 import { Card } from './ui'
 
 type Range = 30 | 90 | 180 | 0
@@ -91,7 +95,7 @@ function Stat({ label, value, unit, sub }: { label: string; value: string; unit?
   )
 }
 
-const DISC_COLOR: Record<string, string> = { swim: 'var(--swim)', bike: 'var(--bike)', run: 'var(--run)' }
+const DISC_COLOR: Record<string, string> = { swim: 'var(--swim)', bike: 'var(--bike)', run: 'var(--run)', strength: 'var(--strength)' }
 
 function WorkoutTable({ workouts }: { workouts: HistoryWorkout[] }) {
   const [disc, setDisc] = useState('all')
@@ -147,7 +151,9 @@ export function History() {
   }
 
   const h = state.data
-  const cutoff = range ? new Date(Date.now() - range * 86400000).toISOString().slice(0, 10) : ''
+  // Ranges count back from the newest day in the export, not from today, so an older export still fills them.
+  const latest = h.days[h.days.length - 1]?.date
+  const cutoff = range && latest ? new Date(Date.parse(latest) - range * 86400000).toISOString().slice(0, 10) : ''
   const days: HistoryDay[] = h.days.filter((d) => d.date >= cutoff)
   const workouts = h.workouts.filter((w) => w.date >= cutoff)
   const dates = days.map((d) => d.date)
@@ -175,6 +181,23 @@ export function History() {
         <Stat label="Sleep" value={fmt(mean(col('sleep_h')), 1)} unit="h" sub={`need ${fmt(mean(col('need_h')), 1)} h`} />
         <Stat label="Workouts" value={String(workouts.length)} sub={`${fmt(workouts.reduce((a, w) => a + (w.minutes ?? 0), 0) / 60, 1)} h total`} />
       </div>
+
+      {/* An older dashboard process may serve this build without the analytics block. */}
+      {h.analytics ? (
+        <>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[3fr_2fr]">
+            <LoadCard load={h.analytics.load} weeks={h.analytics.load.weeks.filter((w) => w.week >= cutoff)} />
+            <RunZonesCard zones={h.analytics.run_zones} fromMonth={cutoff.slice(0, 7)} />
+          </div>
+          <SleepRecoveryCard data={h.analytics.sleep_recovery} from={cutoff} />
+        </>
+      ) : (
+        <p className="rounded-xl border border-[var(--border)] px-4 py-3 text-[13px] text-[var(--ink-2)]">
+          Training load, run intensity and sleep insights need a newer dashboard server. Restart it to load them.
+        </p>
+      )}
+
+      <CalendarHeatmap days={h.days} workouts={h.workouts} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card title="Recovery" subtitle="Daily score with 7-day average" icon={<BarChart3 className="size-4.5" />}>
