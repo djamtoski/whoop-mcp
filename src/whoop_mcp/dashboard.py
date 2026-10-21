@@ -133,10 +133,10 @@ async def _strength_context(svc: WhoopService) -> dict:
                 for w in hist.get("workouts", []) if w["discipline"] == "strength"}
     body_kg = (hist.get("body") or {}).get("weight_kilogram")
     try:
-        live = await svc.strength_context()
+        live = await svc.recent_context()
         recovery.update(live["recovery"])
         workouts.update({w["id"]: {k: w[k] for k in ("id", "date", "start", "sport", "duration_min", "strain", "avg_hr", "max_hr")}
-                         for w in live["workouts"]})
+                         for w in live["workouts"] if w["discipline"] == "strength"})
     except Exception:  # noqa: BLE001 - offline or not logged in: the export alone still works
         log.info("live strength context unavailable", exc_info=True)
     return {"recovery": recovery, "workouts": sorted(workouts.values(), key=lambda w: w["start"] or "", reverse=True),
@@ -156,6 +156,61 @@ async def strength_summary(demo: bool = Query(False)):
         "body_kg": ctx["body_kg"],
         "whoop_sessions": [{**w, "logged": w["id"] in linked} for w in ctx["workouts"][:60]],
     }
+
+
+class PlanSettingsIn(BaseModel):
+    race_name: str | None = None
+    race_date: str | None = None
+    weekly_hours: float | None = None
+    strength_days: list[int] | None = None
+    long_ride_day: int | None = None
+    long_run_day: int | None = None
+    rest_day: int | None = None
+
+
+@app.get("/api/plan")
+async def plan_week(demo: bool = Query(False)):
+    from datetime import date
+
+    from . import plan
+    from .history import build_history
+
+    svc = _demo if demo else _live
+    hist = await asyncio.to_thread(build_history)
+    workouts = {w["id"]: {"id": w["id"], "date": w["date"], "start": w["start"], "timezone_offset": w.get("timezone_offset"),
+                          "discipline": w["discipline"], "duration_min": w["minutes"]} for w in hist.get("workouts", [])}
+    recovery: dict[str, float] = {}
+    live_ok = True
+    try:
+        live = await svc.recent_context(14)
+        recovery = live["recovery"]
+        workouts.update({w["id"]: w for w in live["workouts"]})
+    except Exception:  # noqa: BLE001 - plan still works from settings + export
+        live_ok = False
+        log.info("live plan context unavailable", exc_info=True)
+    settings = await asyncio.to_thread(plan.load_settings)
+    all_w = list(workouts.values())
+    habits = plan.habits(all_w)
+    today = date.today()
+    week = plan.build_week(settings, habits, today)
+    plan.mark_done(week, all_w)
+    rec_today = recovery.get(str(today))
+    for day in week["days"]:
+        if day["date"] == str(today):
+            for s in day["sessions"]:
+                s["adjustment"] = plan.adjust_for_recovery(s, rec_today)
+    return {"settings": settings, "habits": habits, "week": week, "today": str(today),
+            "recovery_today": rec_today, "live": live_ok}
+
+
+@app.put("/api/plan/settings")
+async def plan_settings(body: PlanSettingsIn):
+    from . import plan
+
+    try:
+        return await asyncio.to_thread(plan.save_settings, body.model_dump(exclude_unset=True))
+    except (ValueError, TypeError) as e:
+        return _bad(ValueError(str(e)))
 
 
 @app.get("/api/insights")

@@ -203,6 +203,7 @@ def summarize_workout(w: Record) -> dict[str, Any]:
         "id": w.get("id"),
         "date": str(workout_day(w)),
         "start": w.get("start"),
+        "timezone_offset": w.get("timezone_offset"),
         "sport": w.get("sport_name"),
         "discipline": classify_sport(w.get("sport_name")),
         "duration_min": round((end - start).total_seconds() / 60, 1) if start and end else None,
