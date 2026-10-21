@@ -125,6 +125,16 @@ export interface HistoryWorkout {
   kj: number | null; km: number | null; zones: number[]
 }
 
+export type TrainingDiscipline = 'swim' | 'bike' | 'run' | 'strength'
+
+export interface LoadWeek {
+  week: string; hours: Record<TrainingDiscipline, number>; sessions: number; total_hours: number; avg_strain: number | null
+}
+
+export interface HistoryAnalytics {
+  load: { weeks: LoadWeek[]; last_session: Record<TrainingDiscipline, { date: string | null; days: number | null }>; as_of: string | null }
+}
+
 export type History =
   | { available: false }
   | {
@@ -134,6 +144,7 @@ export type History =
       body: Record<string, number> | null
       days: HistoryDay[]
       workouts: HistoryWorkout[]
+      analytics: HistoryAnalytics
       monthly: Record<string, number | string | null>[]
     }
 

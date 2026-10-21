@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from . import history_analytics as ha
 from .export import latest_export
 
 
@@ -82,6 +83,7 @@ def build_history() -> dict[str, Any]:
     manifest_path = root / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
     series = [days[k] for k in sorted(days)]
+    analytics = {"load": ha.weekly_load(series, workouts)}
     return {
         "available": True,
         "exported_at": manifest.get("exported_at"),
@@ -89,5 +91,6 @@ def build_history() -> dict[str, Any]:
         "body": manifest.get("body"),
         "days": series,
         "workouts": workouts,
+        "analytics": analytics,
         "monthly": [{k: (_num(v) if k != "month" else v) for k, v in m.items()} for m in monthly],
     }

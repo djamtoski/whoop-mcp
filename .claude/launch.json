@@ -7,6 +7,14 @@
       "runtimeArgs": ["-m", "whoop_mcp", "dashboard"],
       "port": 8000,
       "autoPort": false
+    },
+    {
+      "name": "whoop-dashboard-preview",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "whoop_mcp", "dashboard"],
+      "env": { "WHOOP_DASHBOARD_PORT": "8001" },
+      "port": 8001,
+      "autoPort": false
     }
   ]
 }
