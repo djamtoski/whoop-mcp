@@ -65,6 +65,17 @@ export function useInsights() {
   return { items, live }
 }
 
+const OUTDATED = 'The dashboard server is older than this page. Restart it (or reconnect the WHOOP MCP) to load this tab.'
+
+/** GET JSON; a 404 or an HTML reply means the server predates this endpoint. */
+async function getJson(url: string) {
+  const r = await fetch(url)
+  const json = (r.headers.get('content-type') ?? '').includes('application/json')
+  if (r.status === 404 || !json) throw new Error(OUTDATED)
+  if (!r.ok) throw new Error(`${url}: ${r.status}`)
+  return r.json()
+}
+
 export interface StrengthData { summary: StrengthSummary; exercises: Exercise[]; sessions: StrengthSession[] }
 
 export function useStrength() {
@@ -73,13 +84,12 @@ export function useStrength() {
   const load = useCallback(async () => {
     try {
       const [summary, exercises, sessions] = await Promise.all(
-        ['/api/strength/summary', '/api/strength/exercises', '/api/strength/sessions'].map((u) =>
-          fetch(u).then((r) => { if (!r.ok) throw new Error(`${u}: ${r.status}`); return r.json() })),
+        ['/api/strength/summary', '/api/strength/exercises', '/api/strength/sessions'].map(getJson),
       )
       setData({ summary, exercises, sessions })
       setError(null)
     } catch (e) {
-      setError(String(e))
+      setError(e instanceof Error ? e.message : String(e))
     }
   }, [])
   useEffect(() => { load() }, [load])
@@ -101,12 +111,10 @@ export function usePlan() {
   const [error, setError] = useState<string | null>(null)
   const load = useCallback(async () => {
     try {
-      const r = await fetch('/api/plan')
-      if (!r.ok) throw new Error(`plan: ${r.status}`)
-      setData(await r.json())
+      setData(await getJson('/api/plan'))
       setError(null)
     } catch (e) {
-      setError(String(e))
+      setError(e instanceof Error ? e.message : String(e))
     }
   }, [])
   useEffect(() => { load() }, [load])

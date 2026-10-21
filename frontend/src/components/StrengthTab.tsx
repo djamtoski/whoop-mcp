@@ -122,7 +122,7 @@ export function StrengthTab() {
   const { data, error, reload } = useStrength()
   const [draft, setDraft] = useState<Draft>(emptyDraft())
 
-  if (error) return <div className="mx-auto mt-10 max-w-lg rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-6 text-center text-sm text-[var(--ink-2)]">Couldn't load the strength log: {error}</div>
+  if (error) return <div className="mx-auto mt-10 max-w-lg rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-6 text-center text-sm text-[var(--ink-2)]">Couldn't load the strength log. {error}</div>
   if (!data) return <div className="py-20 text-center text-[var(--ink-2)]">Loading strength log…</div>
   const { summary, exercises, sessions } = data
   const unlogged = summary.whoop_sessions.filter((w) => !w.logged)
