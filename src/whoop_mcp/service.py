@@ -87,6 +87,14 @@ class WhoopService:
         _, table = await self._table(day, 28)
         return an.weekly_trends(table, day)
 
+    async def strength_context(self, lookback: int = 28) -> dict[str, Any]:
+        """Recent recovery by day and WHOOP strength workouts, for linking logged lifts to WHOOP data."""
+        day = date.today()
+        _, table = await self._table(day, lookback)
+        recovery = {str(d): v for d, row in table.items() if (v := an._vitals(row)["recovery"]) is not None}
+        workouts = [an.summarize_workout(w) for row in table.values() for w in row["workouts"]]
+        return {"recovery": recovery, "workouts": [w for w in workouts if w["discipline"] == "strength"]}
+
     async def summary(self) -> dict[str, Any]:
         """Everything the dashboard needs in one round-trip (one 28-day fetch)."""
         day = date.today()

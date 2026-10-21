@@ -122,6 +122,42 @@ async def strength_delete(session_id: int):
     return {"deleted": session_id}
 
 
+async def _strength_context(svc: WhoopService) -> dict:
+    """Recovery by day and WHOOP strength workouts: the full export, overlaid with the live last 28 days."""
+    from .history import build_history
+
+    hist = await asyncio.to_thread(build_history)
+    recovery = {d["date"]: d["recovery"] for d in hist.get("days", []) if d.get("recovery") is not None}
+    workouts = {w["id"]: {"id": w["id"], "date": w["date"], "start": w["start"], "sport": w["sport"],
+                          "duration_min": w["minutes"], "strain": w["strain"], "avg_hr": w["avg_hr"], "max_hr": w["max_hr"]}
+                for w in hist.get("workouts", []) if w["discipline"] == "strength"}
+    body_kg = (hist.get("body") or {}).get("weight_kilogram")
+    try:
+        live = await svc.strength_context()
+        recovery.update(live["recovery"])
+        workouts.update({w["id"]: {k: w[k] for k in ("id", "date", "start", "sport", "duration_min", "strain", "avg_hr", "max_hr")}
+                         for w in live["workouts"]})
+    except Exception:  # noqa: BLE001 - offline or not logged in: the export alone still works
+        log.info("live strength context unavailable", exc_info=True)
+    return {"recovery": recovery, "workouts": sorted(workouts.values(), key=lambda w: w["start"] or "", reverse=True),
+            "body_kg": body_kg}
+
+
+@app.get("/api/strength/summary")
+async def strength_summary(demo: bool = Query(False)):
+    from . import strength_analytics as sa
+
+    ctx = await _strength_context(_demo if demo else _live)
+    sessions, exercises = await asyncio.gather(asyncio.to_thread(strength.list_sessions),
+                                               asyncio.to_thread(strength.list_exercises))
+    linked = {s["whoop_workout_id"] for s in sessions if s["whoop_workout_id"]}
+    return {
+        **sa.summary(sessions, exercises, ctx["recovery"], ctx["body_kg"]),
+        "body_kg": ctx["body_kg"],
+        "whoop_sessions": [{**w, "logged": w["id"] in linked} for w in ctx["workouts"][:60]],
+    }
+
+
 @app.get("/api/insights")
 async def get_insights():
     return insights.list_insights()
