@@ -78,6 +78,20 @@ To run the dashboard without Claude:
 To see it without a WHOOP account, open **http://localhost:8000/?demo=1**.
 Setting `WHOOP_MCP_DEMO=1` makes the MCP tools return demo data too.
 
+The dashboard has two tabs:
+- **Today**: live recovery, strain, sleep, 7-day trends, the workout log (7/14/28 days, strength included) and
+  Claude's coaching notes.
+- **History**: built from the latest full-history export (below), with a 30d / 90d / 6m / All range:
+  - **Training load & consistency**: weekly hours per sport, and days since your last swim, bike, run and strength session.
+  - **Run intensity**: time in HR zones 1–5 per month, against an 80% easy (Z1–Z2) target.
+  - **Sleep vs recovery**: every night against the next morning's recovery, average recovery by sleep length, and
+    the sleep length where your recovery levels off.
+  - **Calendar**: one square per day coloured by recovery, strain or sleep, with a dot on training days.
+  - Recovery, HRV/RHR, strain and sleep charts, a monthly table and the full workout list.
+
+To preview dashboard changes while Claude Code's MCP server holds port 8000, run a second copy on another port
+(`WHOOP_DASHBOARD_PORT=8001`); restarting the process on 8000 disconnects the MCP tools.
+
 ## Full-history export
 ```powershell
 .venv\Scripts\python -m whoop_mcp export            # writes exports\<timestamp>\
