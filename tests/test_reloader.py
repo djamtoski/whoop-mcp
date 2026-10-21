@@ -20,6 +20,15 @@ def test_snapshot_and_changed(tmp_path):
     assert reloader.changed(before, after) == [str(tmp_path / "a.py"), str(tmp_path / "b.py")]
 
 
+def test_pid_alive_treats_an_unreaped_exited_process_as_dead():
+    p = subprocess.Popen([sys.executable, "-c", "pass"])
+    deadline = time.time() + 10
+    while reloader.pid_alive(p.pid) and time.time() < deadline:  # not waited on: a zombie on Linux
+        time.sleep(0.05)
+    assert not reloader.pid_alive(p.pid)
+    p.wait()
+
+
 def test_pid_alive():
     assert reloader.pid_alive(os.getpid())
     p = subprocess.Popen([sys.executable, "-c", "pass"])
