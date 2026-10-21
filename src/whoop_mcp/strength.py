@@ -105,22 +105,44 @@ def list_exercises() -> list[dict[str, Any]]:
         return [_exercise(r) for r in con.execute("SELECT * FROM exercises ORDER BY name")]
 
 
-def add_exercise(name: str, pattern: str, muscles: list[str], push_pull: str = "none",
-                 region: str | None = None, bodyweight: bool = False) -> dict[str, Any]:
+def _normalize_exercise(name: str, pattern: str, muscles: list[str], push_pull: str = "none",
+                       region: str | None = None) -> tuple[tuple | None, str | None]:
+    """(name, pattern, muscles, push_pull, region) cleaned up, or a one-line problem."""
     name = " ".join((name or "").split())[:60]
     if not name:
-        raise ValueError("exercise name is empty")
+        return None, "exercise name is empty"
     if pattern not in PATTERNS:
-        raise ValueError(f"pattern must be one of {', '.join(PATTERNS)}")
-    bad = [m for m in muscles if m not in MUSCLES]
-    if not muscles or bad:
-        raise ValueError(f"muscles must be a non-empty list from {', '.join(MUSCLES)}")
+        return None, f"pattern must be one of {', '.join(PATTERNS)}"
+    if not muscles or any(m not in MUSCLES for m in muscles):
+        return None, f"muscles must be a non-empty list from {', '.join(MUSCLES)}"
     if push_pull not in ("push", "pull", "none"):
-        raise ValueError("push_pull must be push, pull or none")
+        return None, "push_pull must be push, pull or none"
     region = region or ("lower" if muscles[0] in ("quads", "glutes", "hamstrings", "calves")
                         else "core" if muscles[0] == "core" else "upper")
     if region not in ("upper", "lower", "core"):
-        raise ValueError("region must be upper, lower or core")
+        return None, "region must be upper, lower or core"
+    return (name, pattern, muscles, push_pull, region), None
+
+
+def check_exercise(name: str, pattern: str, muscles: list[str], push_pull: str = "none",
+                   region: str | None = None, bodyweight: bool = False) -> str | None:
+    """Why add_exercise would refuse these values, or None. Returns the message instead of raising
+    so the dashboard can show it without echoing exception text."""
+    clean, problem = _normalize_exercise(name, pattern, muscles, push_pull, region)
+    if problem:
+        return problem
+    with connect() as con:
+        if con.execute("SELECT 1 FROM exercises WHERE name = ?", (clean[0],)).fetchone():
+            return f"an exercise called {clean[0]!r} already exists"
+    return None
+
+
+def add_exercise(name: str, pattern: str, muscles: list[str], push_pull: str = "none",
+                 region: str | None = None, bodyweight: bool = False) -> dict[str, Any]:
+    clean, problem = _normalize_exercise(name, pattern, muscles, push_pull, region)
+    if problem:
+        raise ValueError(problem)
+    name, pattern, muscles, push_pull, region = clean
     with connect() as con:
         try:
             cur = con.execute(
@@ -131,39 +153,70 @@ def add_exercise(name: str, pattern: str, muscles: list[str], push_pull: str = "
         return _exercise(con.execute("SELECT * FROM exercises WHERE id = ?", (cur.lastrowid,)).fetchone())
 
 
+def _lookup_exercise(con: sqlite3.Connection, ref: int | str) -> sqlite3.Row | None:
+    return (con.execute("SELECT * FROM exercises WHERE id = ?", (ref,)).fetchone() if isinstance(ref, int)
+            else con.execute("SELECT * FROM exercises WHERE name = ?", (str(ref).strip(),)).fetchone())
+
+
 def find_exercise(con: sqlite3.Connection, ref: int | str) -> sqlite3.Row:
-    row = (con.execute("SELECT * FROM exercises WHERE id = ?", (ref,)).fetchone() if isinstance(ref, int)
-           else con.execute("SELECT * FROM exercises WHERE name = ?", (str(ref).strip(),)).fetchone())
+    row = _lookup_exercise(con, ref)
     if row is None:
         raise ValueError(f"unknown exercise {ref!r}")
     return row
 
 
-def _clean_sets(con: sqlite3.Connection, sets: list[dict[str, Any]]) -> list[tuple]:
+def _validate_sets(con: sqlite3.Connection, sets: list[dict[str, Any]]) -> tuple[list[tuple], str | None]:
     if not sets:
-        raise ValueError("a session needs at least one set")
+        return [], "a session needs at least one set"
     out = []
     for i, s in enumerate(sets):
-        ex = find_exercise(con, s.get("exercise_id") or s.get("exercise") or "")
-        reps = int(s.get("reps") or 0)
-        kg = float(s.get("weight_kg") or 0)
-        rpe = s.get("rpe")
+        ref = s.get("exercise_id") or s.get("exercise") or ""
+        ex = _lookup_exercise(con, ref)
+        if ex is None:
+            return [], f"set {i + 1}: unknown exercise {ref!r}"
+        try:
+            reps = int(s.get("reps") or 0)
+            kg = float(s.get("weight_kg") or 0)
+            rpe = None if s.get("rpe") is None else float(s["rpe"])
+        except (TypeError, ValueError):
+            return [], f"set {i + 1}: reps, weight_kg and rpe must be numbers"
         if not 0 < reps <= 100:
-            raise ValueError(f"set {i + 1}: reps must be 1-100")
+            return [], f"set {i + 1}: reps must be 1-100"
         if not 0 <= kg <= 500:
-            raise ValueError(f"set {i + 1}: weight_kg must be 0-500")
-        if rpe is not None and not 1 <= float(rpe) <= 10:
-            raise ValueError(f"set {i + 1}: rpe must be 1-10")
-        out.append((ex["id"], i, reps, kg, None if rpe is None else float(rpe), int(bool(s.get("warmup")))))
-    return out
+            return [], f"set {i + 1}: weight_kg must be 0-500"
+        if rpe is not None and not 1 <= rpe <= 10:
+            return [], f"set {i + 1}: rpe must be 1-10"
+        out.append((ex["id"], i, reps, kg, rpe, int(bool(s.get("warmup")))))
+    return out, None
+
+
+def _valid_day(day: str) -> bool:
+    try:
+        date.fromisoformat(day)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def check_session(day: str, sets: list[dict[str, Any]], session_id: int | None = None) -> str | None:
+    """Why save_session would refuse this session, or None (a message, not an exception)."""
+    if not _valid_day(day):
+        return "date must be YYYY-MM-DD"
+    with connect() as con:
+        if session_id is not None and not con.execute("SELECT 1 FROM sessions WHERE id = ?", (session_id,)).fetchone():
+            return f"no session {session_id}"
+        return _validate_sets(con, sets)[1]
 
 
 def save_session(day: str, sets: list[dict[str, Any]], notes: str = "", whoop_workout_id: str | None = None,
                  session_id: int | None = None) -> dict[str, Any]:
     """Create a session, or replace one (its sets too) when session_id is given."""
-    date.fromisoformat(day)  # validates
+    if not _valid_day(day):
+        raise ValueError("date must be YYYY-MM-DD")
     with connect() as con:
-        rows = _clean_sets(con, sets)
+        rows, problem = _validate_sets(con, sets)
+        if problem:
+            raise ValueError(problem)
         if session_id is None:
             cur = con.execute("INSERT INTO sessions (date, whoop_workout_id, notes, created_at) VALUES (?, ?, ?, ?)",
                               (day, whoop_workout_id or None, (notes or "")[:2000], datetime.now(timezone.utc).isoformat()))

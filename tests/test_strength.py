@@ -75,3 +75,22 @@ def test_api_round_trip_and_host_check():
     assert c.delete(f"/api/strength/sessions/{sid}").status_code == 404
     # Requests addressed to another host name (DNS rebinding) are refused.
     assert TestClient(app, base_url="http://evil.example").get("/api/strength/sessions").status_code == 400
+
+
+def test_check_functions_return_messages_without_writing():
+    assert strength.check_session("2026-13-01", [{"exercise": "Deadlift", "reps": 5}]) == "date must be YYYY-MM-DD"
+    assert strength.check_session("2026-10-14", [{"exercise": "Deadlift", "reps": "five"}]).endswith("must be numbers")
+    assert strength.check_session("2026-10-14", [{"exercise": "Deadlift", "reps": 5}], session_id=99) == "no session 99"
+    assert strength.check_session("2026-10-14", [{"exercise": "Deadlift", "reps": 5}]) is None
+    assert "already exists" in strength.check_exercise("deadlift", "hinge", ["hamstrings"])
+    assert strength.list_sessions() == []
+
+
+def test_api_400_detail_is_the_validation_message():
+    from whoop_mcp.dashboard import app
+
+    c = TestClient(app, base_url="http://localhost")
+    r = c.post("/api/strength/sessions", json={"date": "2026-10-14", "sets": [{"exercise_id": 9999, "reps": 5}]})
+    assert r.status_code == 400 and r.json()["detail"] == "set 1: unknown exercise 9999"
+    r = c.put("/api/strength/sessions/42", json={"date": "2026-10-14", "sets": [{"exercise_id": squat_id(), "reps": 5}]})
+    assert r.status_code == 400 and r.json()["detail"] == "no session 42"

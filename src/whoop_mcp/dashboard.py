@@ -75,8 +75,18 @@ class ExerciseIn(BaseModel):
     bodyweight: bool = False
 
 
-def _bad(e: ValueError) -> JSONResponse:
-    return JSONResponse({"error": "invalid", "detail": str(e)}, status_code=400)
+def _bad(problem: str) -> JSONResponse:
+    # Validation messages come from the check_* functions' return values, never from exception text.
+    return JSONResponse({"error": "invalid", "detail": problem}, status_code=400)
+
+
+async def _save(fn, *args):
+    """Run a write that its check_* function already accepted."""
+    try:
+        return await asyncio.to_thread(fn, *args)
+    except ValueError:  # raced with another writer between the check and the write
+        log.warning("write rejected after validation", exc_info=True)
+        return _bad("Could not save; reload and try again.")
 
 
 @app.get("/api/strength/exercises")
@@ -86,10 +96,10 @@ async def strength_exercises():
 
 @app.post("/api/strength/exercises")
 async def strength_add_exercise(body: ExerciseIn):
-    try:
-        return await asyncio.to_thread(strength.add_exercise, **body.model_dump())
-    except ValueError as e:
-        return _bad(e)
+    args = [body.name, body.pattern, body.muscles, body.push_pull, body.region, body.bodyweight]
+    if problem := await asyncio.to_thread(strength.check_exercise, *args):
+        return _bad(problem)
+    return await _save(strength.add_exercise, *args)
 
 
 @app.get("/api/strength/sessions")
@@ -99,20 +109,18 @@ async def strength_sessions(since: str | None = None):
 
 @app.post("/api/strength/sessions")
 async def strength_create(body: SessionIn):
-    try:
-        return await asyncio.to_thread(strength.save_session, body.date, [s.model_dump() for s in body.sets],
-                                       body.notes, body.whoop_workout_id)
-    except ValueError as e:
-        return _bad(e)
+    sets = [s.model_dump() for s in body.sets]
+    if problem := await asyncio.to_thread(strength.check_session, body.date, sets):
+        return _bad(problem)
+    return await _save(strength.save_session, body.date, sets, body.notes, body.whoop_workout_id)
 
 
 @app.put("/api/strength/sessions/{session_id}")
 async def strength_update(session_id: int, body: SessionIn):
-    try:
-        return await asyncio.to_thread(strength.save_session, body.date, [s.model_dump() for s in body.sets],
-                                       body.notes, body.whoop_workout_id, session_id)
-    except ValueError as e:
-        return _bad(e)
+    sets = [s.model_dump() for s in body.sets]
+    if problem := await asyncio.to_thread(strength.check_session, body.date, sets, session_id):
+        return _bad(problem)
+    return await _save(strength.save_session, body.date, sets, body.notes, body.whoop_workout_id, session_id)
 
 
 @app.delete("/api/strength/sessions/{session_id}")
@@ -146,10 +154,10 @@ async def plan_week(demo: bool = Query(False)):
 async def plan_settings(body: PlanSettingsIn):
     from . import plan
 
-    try:
-        return await asyncio.to_thread(plan.save_settings, body.model_dump(exclude_unset=True))
-    except (ValueError, TypeError) as e:
-        return _bad(ValueError(str(e)))
+    patch = body.model_dump(exclude_unset=True)
+    if problem := await asyncio.to_thread(plan.check_settings, patch):
+        return _bad(problem)
+    return await _save(plan.save_settings, patch)
 
 
 @app.get("/api/insights")

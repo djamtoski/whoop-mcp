@@ -92,3 +92,9 @@ def test_no_sport_twice_on_one_day_in_base():
     for d in week["days"]:
         sports = [x["sport"] for x in d["sessions"]]
         assert len(sports) == len(set(sports)), d
+
+
+def test_check_settings_returns_message():
+    assert plan.check_settings({"weekly_hours": "lots"}) == "weekly_hours must be a number"
+    assert plan.check_settings({"race_date": "2027-05-16"}) is None
+    assert not config.PLAN_FILE.exists()

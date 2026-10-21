@@ -79,28 +79,47 @@ def load_settings() -> dict[str, Any]:
     return {**DEFAULTS, **{k: v for k, v in data.items() if k in DEFAULTS}}
 
 
-def save_settings(patch: dict[str, Any]) -> dict[str, Any]:
+def _normalize_settings(patch: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
+    """The saved settings with `patch` applied and validated, or a one-line problem."""
     s = load_settings()
     for k, v in patch.items():
         if k not in DEFAULTS:
-            raise ValueError(f"unknown setting {k!r}")
+            return None, f"unknown setting {k!r}"
         s[k] = v
     if s["race_date"]:
-        date.fromisoformat(s["race_date"])
-    hours = float(s["weekly_hours"])
+        try:
+            date.fromisoformat(s["race_date"])
+        except (TypeError, ValueError):
+            return None, "race_date must be YYYY-MM-DD"
+    try:
+        hours = float(s["weekly_hours"])
+    except (TypeError, ValueError):
+        return None, "weekly_hours must be a number"
     if not 3 <= hours <= 25:
-        raise ValueError("weekly_hours must be 3-25")
+        return None, "weekly_hours must be 3-25"
     s["weekly_hours"] = hours
     for k in ("long_ride_day", "long_run_day", "rest_day"):
         if s[k] not in range(7):
-            raise ValueError(f"{k} must be 0 (Mon) to 6 (Sun)")
+            return None, f"{k} must be 0 (Mon) to 6 (Sun)"
     if s["strength_days"] is not None:
         if not isinstance(s["strength_days"], list) or not all(d in range(7) for d in s["strength_days"]) or len(s["strength_days"]) > 3:
-            raise ValueError("strength_days must be up to 3 weekdays, 0 (Mon) to 6 (Sun)")
+            return None, "strength_days must be up to 3 weekdays, 0 (Mon) to 6 (Sun)"
         s["strength_days"] = sorted(set(s["strength_days"]))
     if len({s["long_ride_day"], s["long_run_day"], s["rest_day"]}) < 3:
-        raise ValueError("long ride, long run and rest must be on different days")
+        return None, "long ride, long run and rest must be on different days"
     s["race_name"] = str(s["race_name"] or DEFAULTS["race_name"])[:80]
+    return s, None
+
+
+def check_settings(patch: dict[str, Any]) -> str | None:
+    """Why save_settings would refuse `patch`, or None (a message, not an exception)."""
+    return _normalize_settings(patch)[1]
+
+
+def save_settings(patch: dict[str, Any]) -> dict[str, Any]:
+    s, problem = _normalize_settings(patch)
+    if problem:
+        raise ValueError(problem)
     config.PLAN_FILE.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=config.PLAN_FILE.parent, prefix=".plan-")
     with os.fdopen(fd, "w", encoding="utf-8") as f:
