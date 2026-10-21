@@ -35,3 +35,13 @@ def test_supervisor_stops_child_when_parent_exits(tmp_path):
     assert reloader.supervise(child, parent_pid=parent.pid) == 0
     assert time.time() - t0 < 10
     assert not reloader.pid_alive(int(marker.read_text()))
+
+
+def test_supervisor_retries_a_child_that_exits(tmp_path, monkeypatch):
+    monkeypatch.setattr(reloader, "RETRY_S", 0.5)
+    monkeypatch.setattr(reloader, "POLL_S", 0.1)
+    parent = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(3)"])
+    log = tmp_path / "starts.txt"
+    child = [sys.executable, "-c", f"open(r'{log}', 'a').write('x')"]  # exits at once, like a busy port
+    assert reloader.supervise(child, parent_pid=parent.pid) == 0
+    assert len(log.read_text()) >= 3
