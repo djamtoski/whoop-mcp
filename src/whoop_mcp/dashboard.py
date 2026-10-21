@@ -11,14 +11,18 @@ import threading
 from fastapi import FastAPI, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from . import config, insights
+from . import config, insights, strength
 from .auth import AuthError, complete_pending_login, load_tokens
 from .service import WhoopService
 
 log = logging.getLogger("whoop_mcp.dashboard")
 
 app = FastAPI(title="WHOOP Triathlon Dashboard", docs_url=None, redoc_url=None)
+# The API now writes (strength log), so only answer requests addressed to this machine (blocks DNS rebinding).
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "[::1]"])
 _live = WhoopService()
 _demo = WhoopService(demo_mode=True)
 
@@ -45,6 +49,77 @@ async def history():
     from .history import build_history
 
     return await asyncio.to_thread(build_history)
+
+
+class SetIn(BaseModel):
+    exercise_id: int
+    reps: int
+    weight_kg: float = 0
+    rpe: float | None = None
+    warmup: bool = False
+
+
+class SessionIn(BaseModel):
+    date: str
+    sets: list[SetIn]
+    notes: str = ""
+    whoop_workout_id: str | None = None
+
+
+class ExerciseIn(BaseModel):
+    name: str
+    pattern: str
+    muscles: list[str]
+    push_pull: str = "none"
+    region: str | None = None
+    bodyweight: bool = False
+
+
+def _bad(e: ValueError) -> JSONResponse:
+    return JSONResponse({"error": "invalid", "detail": str(e)}, status_code=400)
+
+
+@app.get("/api/strength/exercises")
+async def strength_exercises():
+    return await asyncio.to_thread(strength.list_exercises)
+
+
+@app.post("/api/strength/exercises")
+async def strength_add_exercise(body: ExerciseIn):
+    try:
+        return await asyncio.to_thread(strength.add_exercise, **body.model_dump())
+    except ValueError as e:
+        return _bad(e)
+
+
+@app.get("/api/strength/sessions")
+async def strength_sessions(since: str | None = None):
+    return await asyncio.to_thread(strength.list_sessions, since)
+
+
+@app.post("/api/strength/sessions")
+async def strength_create(body: SessionIn):
+    try:
+        return await asyncio.to_thread(strength.save_session, body.date, [s.model_dump() for s in body.sets],
+                                       body.notes, body.whoop_workout_id)
+    except ValueError as e:
+        return _bad(e)
+
+
+@app.put("/api/strength/sessions/{session_id}")
+async def strength_update(session_id: int, body: SessionIn):
+    try:
+        return await asyncio.to_thread(strength.save_session, body.date, [s.model_dump() for s in body.sets],
+                                       body.notes, body.whoop_workout_id, session_id)
+    except ValueError as e:
+        return _bad(e)
+
+
+@app.delete("/api/strength/sessions/{session_id}")
+async def strength_delete(session_id: int):
+    if not await asyncio.to_thread(strength.delete_session, session_id):
+        return JSONResponse({"error": "not_found", "detail": f"No session {session_id}."}, status_code=404)
+    return {"deleted": session_id}
 
 
 @app.get("/api/insights")
