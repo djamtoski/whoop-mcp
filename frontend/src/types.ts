@@ -158,3 +158,70 @@ export type History =
     }
 
 export interface Insight { id: string; created_at: string; title: string | null; markdown: string }
+
+export interface Exercise {
+  id: number; name: string; pattern: string; muscles: string[]; push_pull: 'push' | 'pull' | 'none'
+  region: 'upper' | 'lower' | 'core'; bodyweight: boolean
+}
+
+export interface StrengthSet { exercise_id: number; exercise?: string; reps: number; weight_kg: number; rpe: number | null; warmup: boolean }
+
+export interface StrengthSession { id: number; date: string; whoop_workout_id: string | null; notes: string; created_at: string; sets: StrengthSet[] }
+
+export interface LiftPoint {
+  date: string; session_id: number; sets: number; reps: number; volume_kg: number
+  e1rm: number | null; top_set: { kg: number; reps: number }; pr: boolean
+}
+
+export interface LiftProgress {
+  exercise_id: number; name: string; pattern: string; muscles: string[]; sessions: number; last_date: string
+  pr_e1rm: number | null; pr_date: string | null; change_4w_pct: number | null; points: LiftPoint[]
+}
+
+export interface BalanceWeek {
+  week: string; sessions: number; sets: number; volume_kg: number
+  muscles: Record<string, number>; push: number; pull: number; region: Record<string, number>
+}
+
+export interface WhoopStrengthSession {
+  id: string; date: string; start: string | null; sport: string; duration_min: number | null
+  strain: number | null; avg_hr: number | null; max_hr: number | null; logged: boolean
+}
+
+export interface StrengthSummary {
+  sessions: number
+  body_kg: number | null
+  progress: LiftProgress[]
+  balance: { targets: { low: number; high: number }; weeks: BalanceWeek[] }
+  recovery: {
+    sessions: { session_id: number; date: string; recovery: number | null; next_recovery: number | null; performance_pct: number | null }[]
+    by_zone: Record<'green' | 'yellow' | 'red', { sessions: number; avg_performance_pct: number | null }>
+    avg_next_day_change: number | null
+  }
+  whoop_sessions: WhoopStrengthSession[]
+}
+
+export interface PlanSettings {
+  race_name: string; race_date: string | null; weekly_hours: number; strength_days: number[] | null
+  long_ride_day: number; long_run_day: number; rest_day: number
+}
+
+export interface PlanSession {
+  sport: TrainingDiscipline; kind: string; minutes: number; intensity: string; description: string; hour: number | null
+  done?: boolean; done_minutes?: number | null
+  adjustment?: { zone: 'green' | 'yellow' | 'red'; action: string; note: string } | null
+}
+
+export interface PlanDay { date: string; weekday: string; rest: boolean; sessions: PlanSession[]; extra?: { sport: string; minutes: number | null }[] }
+
+export interface PlanResponse {
+  settings: PlanSettings
+  habits: { weeks: number; by_day: Record<string, number>[]; hours: Record<string, number> }
+  week: {
+    phase: { name: string; weeks_to_race: number | null; strength_sessions: number; strength_min: number; focus: string }
+    strength_days: number[]; days: PlanDay[]; planned_minutes: Record<TrainingDiscipline, number>
+  }
+  today: string
+  recovery_today: number | null
+  live: boolean
+}

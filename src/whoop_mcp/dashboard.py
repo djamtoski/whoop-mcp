@@ -11,14 +11,18 @@ import threading
 from fastapi import FastAPI, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from . import config, insights
+from . import config, insights, strength, views
 from .auth import AuthError, complete_pending_login, load_tokens
 from .service import WhoopService
 
 log = logging.getLogger("whoop_mcp.dashboard")
 
 app = FastAPI(title="WHOOP Triathlon Dashboard", docs_url=None, redoc_url=None)
+# The API now writes (strength log), so only answer requests addressed to this machine (blocks DNS rebinding).
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "[::1]"])
 _live = WhoopService()
 _demo = WhoopService(demo_mode=True)
 
@@ -45,6 +49,115 @@ async def history():
     from .history import build_history
 
     return await asyncio.to_thread(build_history)
+
+
+class SetIn(BaseModel):
+    exercise_id: int
+    reps: int
+    weight_kg: float = 0
+    rpe: float | None = None
+    warmup: bool = False
+
+
+class SessionIn(BaseModel):
+    date: str
+    sets: list[SetIn]
+    notes: str = ""
+    whoop_workout_id: str | None = None
+
+
+class ExerciseIn(BaseModel):
+    name: str
+    pattern: str
+    muscles: list[str]
+    push_pull: str = "none"
+    region: str | None = None
+    bodyweight: bool = False
+
+
+def _bad(problem: str) -> JSONResponse:
+    # Validation messages come from the check_* functions' return values, never from exception text.
+    return JSONResponse({"error": "invalid", "detail": problem}, status_code=400)
+
+
+async def _save(fn, *args):
+    """Run a write that its check_* function already accepted."""
+    try:
+        return await asyncio.to_thread(fn, *args)
+    except ValueError:  # raced with another writer between the check and the write
+        log.warning("write rejected after validation", exc_info=True)
+        return _bad("Could not save; reload and try again.")
+
+
+@app.get("/api/strength/exercises")
+async def strength_exercises():
+    return await asyncio.to_thread(strength.list_exercises)
+
+
+@app.post("/api/strength/exercises")
+async def strength_add_exercise(body: ExerciseIn):
+    args = [body.name, body.pattern, body.muscles, body.push_pull, body.region, body.bodyweight]
+    if problem := await asyncio.to_thread(strength.check_exercise, *args):
+        return _bad(problem)
+    return await _save(strength.add_exercise, *args)
+
+
+@app.get("/api/strength/sessions")
+async def strength_sessions(since: str | None = None):
+    return await asyncio.to_thread(strength.list_sessions, since)
+
+
+@app.post("/api/strength/sessions")
+async def strength_create(body: SessionIn):
+    sets = [s.model_dump() for s in body.sets]
+    if problem := await asyncio.to_thread(strength.check_session, body.date, sets):
+        return _bad(problem)
+    return await _save(strength.save_session, body.date, sets, body.notes, body.whoop_workout_id)
+
+
+@app.put("/api/strength/sessions/{session_id}")
+async def strength_update(session_id: int, body: SessionIn):
+    sets = [s.model_dump() for s in body.sets]
+    if problem := await asyncio.to_thread(strength.check_session, body.date, sets, session_id):
+        return _bad(problem)
+    return await _save(strength.save_session, body.date, sets, body.notes, body.whoop_workout_id, session_id)
+
+
+@app.delete("/api/strength/sessions/{session_id}")
+async def strength_delete(session_id: int):
+    if not await asyncio.to_thread(strength.delete_session, session_id):
+        return JSONResponse({"error": "not_found", "detail": f"No session {session_id}."}, status_code=404)
+    return {"deleted": session_id}
+
+
+@app.get("/api/strength/summary")
+async def strength_summary(demo: bool = Query(False)):
+    return await views.strength_overview(_demo if demo else _live)
+
+
+class PlanSettingsIn(BaseModel):
+    race_name: str | None = None
+    race_date: str | None = None
+    weekly_hours: float | None = None
+    strength_days: list[int] | None = None
+    long_ride_day: int | None = None
+    long_run_day: int | None = None
+    rest_day: int | None = None
+
+
+@app.get("/api/plan")
+async def plan_week(demo: bool = Query(False)):
+    return await views.plan_overview(_demo if demo else _live)
+
+
+@app.put("/api/plan/settings")
+async def plan_settings(body: PlanSettingsIn):
+    from . import plan
+
+    patch = body.model_dump(exclude_unset=True)
+    if problem := await asyncio.to_thread(plan.check_settings, patch):
+        return _bad(problem)
+    return await _save(plan.save_settings, patch)
 
 
 @app.get("/api/insights")

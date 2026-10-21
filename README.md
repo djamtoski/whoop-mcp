@@ -22,6 +22,14 @@ Claude Code ──stdio──▶ whoop_mcp serve ──▶ WHOOP API v2 (OAuth2,
 | `get_whoop_weekly_trends()` | 7-day series vs 28-day baseline, HRV/RHR trend direction, acute:chronic strain ratio, overtraining flags |
 | `get_whoop_full_history(refresh?)` | Your whole history summarised by month (recovery, HRV, RHR, strain, sleep, training volume per discipline). Uses the latest export, or pulls one first |
 | `update_dashboard_insights(markdown_text, title?)` | Publishes markdown coaching to the dashboard's Live AI Coaching feed |
+| `log_strength_session(sets, date?, notes?, link_whoop?)` | Logs sets (exercise, reps, kg, RPE, warm-up) and links them to that day's WHOOP strength workout |
+| `get_strength_progress(exercise?)` | Estimated 1RM, PRs and 4-week change per lift, weekly sets per muscle, push/pull balance, performance by recovery zone, unlogged WHOOP strength workouts |
+| `get_training_plan()` | This week's Half Ironman plan: phase, sessions per day, what's done, today's recovery adjustment, your usual week |
+| `update_training_plan(race_date?, weekly_hours?, strength_days?, ...)` | Changes race date/name, weekly hours, gym, long and rest days |
+
+> **Strength data.** WHOOP's API and app export have no exercise-level data (sets, reps, weights), even for
+> Strength Trainer sessions. Lifts are logged in the dashboard's Strength tab or with `log_strength_session`
+> and stored in `~/.whoop-mcp/strength.db`; each session links to its WHOOP workout for strain and heart rate.
 
 > **Derived metrics.** The public WHOOP API has no Stress Monitor score, no Strain Coach target and no single
 > "sleep debt" field. This server computes them and marks them with `derived: true`:
@@ -78,9 +86,15 @@ To run the dashboard without Claude:
 To see it without a WHOOP account, open **http://localhost:8000/?demo=1**.
 Setting `WHOOP_MCP_DEMO=1` makes the MCP tools return demo data too.
 
-The dashboard has two tabs:
+The dashboard has four tabs:
 - **Today**: live recovery, strain, sleep, 7-day trends, the workout log (7/14/28 days, strength included) and
   Claude's coaching notes.
+- **Plan**: this week's Half Ironman (70.3) plan. The phase comes from the race date (base, build, peak, taper),
+  sessions are placed on the days you usually train each sport, today's sessions adjust to your recovery, and
+  WHOOP workouts tick sessions off. Settings: race, date, weekly hours, gym, long-ride, long-run and rest days.
+- **Strength**: log full-body sessions set by set (exercises prefill from last time; Repeat last session),
+  linked to the WHOOP workout. Shows e1RM progress and PRs per lift, weekly sets per muscle against a 4–12 band,
+  push:pull and lower:upper, and how your lifting relates to morning recovery.
 - **History**: built from the latest full-history export (below), with a 30d / 90d / 6m / All range:
   - **Training load & consistency**: weekly hours per sport, and days since your last swim, bike, run and strength session.
   - **Run intensity**: time in HR zones 1–5 per month, against an 80% easy (Z1–Z2) target.

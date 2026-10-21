@@ -15,6 +15,7 @@ from pathlib import Path
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 POLL_S = 1.0
+RETRY_S = 10.0  # retry a dashboard that exited (e.g. port busy) this often
 
 
 def snapshot(root: Path = PACKAGE_DIR) -> dict[str, float]:
@@ -104,9 +105,11 @@ def supervise(cmd: list[str], parent_pid: int | None = None) -> int:
                 _stop(proc)
                 proc = start()
             elif proc.poll() is not None:
-                # Crashed (e.g. a syntax error mid-edit): wait for the next change before retrying.
-                _log(f"dashboard exited with {proc.returncode}; restarting after the next change")
-                while not changed(state, now := snapshot()):
+                # Exited: a syntax error mid-edit, or the port is taken by another dashboard. Retry on
+                # the next change, or after RETRY_S so it takes over once the port is free.
+                _log(f"dashboard exited with {proc.returncode}; retrying on the next change or in {RETRY_S:.0f} s")
+                deadline = time.monotonic() + RETRY_S
+                while not changed(state, now := snapshot()) and time.monotonic() < deadline:
                     time.sleep(POLL_S)
                     if parent_pid and not pid_alive(parent_pid):
                         return 0

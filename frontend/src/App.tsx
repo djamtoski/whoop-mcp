@@ -4,12 +4,17 @@ import { useEffect, useState } from 'react'
 import { isDemo, useInsights, useSummary } from './api'
 import { CoachFeed } from './components/CoachFeed'
 import { History } from './components/History'
+import { PlanTab } from './components/PlanTab'
+import { StrengthTab } from './components/StrengthTab'
 import { RecoveryGauge } from './components/RecoveryGauge'
 import { SleepCard } from './components/SleepCard'
 import { StrainDial } from './components/StrainDial'
 import { TrendsCard } from './components/TrendsCard'
 import { WorkoutLog } from './components/WorkoutLog'
 import { LabeledProgressIndicator } from './components/watermelon/labeled-progress-indicator'
+
+const TABS = ['today', 'plan', 'strength', 'history'] as const
+type Tab = (typeof TABS)[number]
 
 function useTheme() {
   const initial = (() => {
@@ -31,7 +36,11 @@ export default function App() {
   const { state, reload } = useSummary()
   const { items, live } = useInsights()
   const [theme, setTheme] = useTheme()
-  const [tab, setTab] = useState<'today' | 'history'>(() => (window.location.hash === '#history' ? 'history' : 'today'))
+  const [tab, setTabState] = useState<Tab>(() => (TABS.find((t) => `#${t}` === window.location.hash) ?? 'today'))
+  const setTab = (t: Tab) => {
+    setTabState(t)
+    window.history.replaceState(null, '', t === 'today' ? window.location.pathname + window.location.search : `#${t}`)
+  }
 
   return (
     <Tooltip.Provider>
@@ -63,12 +72,14 @@ export default function App() {
         </header>
 
         <nav className="mb-5 flex gap-1">
-          {(['today', 'history'] as const).map((t) => (
+          {TABS.map((t) => (
             <button key={t} onClick={() => setTab(t)} className={`rounded-full border px-4 py-1.5 text-[13px] font-medium capitalize ${tab === t ? 'border-[var(--ink-muted)] bg-[var(--surface-2)] text-[var(--ink)]' : 'border-[var(--border)] text-[var(--ink-2)] hover:text-[var(--ink)]'}`}>{t}</button>
           ))}
         </nav>
 
         {tab === 'history' && <History />}
+        {tab === 'strength' && <StrengthTab />}
+        {tab === 'plan' && <PlanTab />}
 
         {tab === 'today' && state.status === 'loading' && (
           <div className="flex min-h-[50vh] items-center justify-center">

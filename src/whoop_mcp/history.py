@@ -70,10 +70,12 @@ def build_history() -> dict[str, Any]:
                      steps=_num(c.get("step_count")))
 
     # Workouts belong to the cycle day they started in; the cycle's recovery date is that day's label.
+    offsets = {w["id"]: w.get("timezone_offset") for w in _rows(root / "workouts.csv")}
     workouts = []
     for w in _rows(root / "workouts_summary.csv"):
         workouts.append({
-            "date": w["date"], "start": w["start"], "sport": w["sport"], "discipline": w["discipline"],
+            "id": w["id"], "date": w["date"], "start": w["start"], "timezone_offset": offsets.get(w["id"]),
+            "sport": w["sport"], "discipline": w["discipline"],
             "minutes": _num(w["duration_min"]), "strain": _num(w["strain"]), "avg_hr": _num(w["avg_hr"]),
             "max_hr": _num(w["max_hr"]), "kj": _num(w["kilojoules"]), "km": _num(w["distance_km"]),
             "zones": [_num(w.get(f"zone_minutes.z{i}")) or 0 for i in range(6)],

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { History, Insight, Summary } from './types'
+import type { Exercise, History, Insight, PlanResponse, StrengthSession, StrengthSummary, Summary } from './types'
 
 type HistoryState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: History }
 
@@ -63,4 +63,52 @@ export function useInsights() {
   }, [])
 
   return { items, live }
+}
+
+export interface StrengthData { summary: StrengthSummary; exercises: Exercise[]; sessions: StrengthSession[] }
+
+export function useStrength() {
+  const [data, setData] = useState<StrengthData | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const load = useCallback(async () => {
+    try {
+      const [summary, exercises, sessions] = await Promise.all(
+        ['/api/strength/summary', '/api/strength/exercises', '/api/strength/sessions'].map((u) =>
+          fetch(u).then((r) => { if (!r.ok) throw new Error(`${u}: ${r.status}`); return r.json() })),
+      )
+      setData({ summary, exercises, sessions })
+      setError(null)
+    } catch (e) {
+      setError(String(e))
+    }
+  }, [])
+  useEffect(() => { load() }, [load])
+  return { data, error, reload: load }
+}
+
+/** POST/PUT/DELETE against the strength API; throws the server's one-line detail on failure. */
+export async function strengthRequest(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown) {
+  const res = await fetch(`/api/strength/${path}`, {
+    method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined,
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(json.detail ? (typeof json.detail === 'string' ? json.detail : 'Invalid input.') : res.statusText)
+  return json
+}
+
+export function usePlan() {
+  const [data, setData] = useState<PlanResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch('/api/plan')
+      if (!r.ok) throw new Error(`plan: ${r.status}`)
+      setData(await r.json())
+      setError(null)
+    } catch (e) {
+      setError(String(e))
+    }
+  }, [])
+  useEffect(() => { load() }, [load])
+  return { data, error, reload: load }
 }

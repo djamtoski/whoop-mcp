@@ -27,6 +27,8 @@ SCOPES = [
 DATA_DIR = Path(os.environ.get("WHOOP_MCP_HOME", Path.home() / ".whoop-mcp"))
 TOKEN_FILE = DATA_DIR / "whoop_tokens.json"
 INSIGHTS_FILE = DATA_DIR / "insights.json"
+STRENGTH_DB = DATA_DIR / "strength.db"
+PLAN_FILE = DATA_DIR / "plan.json"
 PENDING_LOGIN_FILE = DATA_DIR / "pending_login.json"
 
 HOST = os.environ.get("WHOOP_DASHBOARD_HOST", "127.0.0.1")
