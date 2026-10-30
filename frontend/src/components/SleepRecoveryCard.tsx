@@ -51,7 +51,7 @@ export function SleepRecoveryCard({ data, from }: { data: HistoryAnalytics['slee
         </div>
 
         <div className="flex flex-col gap-2">
-          <div className="text-[11.5px] font-medium tracking-wide text-[var(--ink-muted)] uppercase">Average recovery by sleep · whole history</div>
+          <div className="text-[12.5px] font-medium text-[var(--ink-muted)]">Average recovery by sleep · whole history</div>
           {data.buckets.map((b) => (
             <div key={b.low} className="grid grid-cols-[64px_1fr_40px] items-center gap-2 text-[12.5px]">
               <span className="text-[var(--ink-2)]">{bucketLabel(b)}</span>

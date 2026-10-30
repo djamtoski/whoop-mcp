@@ -31,7 +31,7 @@ function LiftsCard({ summary }: { summary: StrengthSummary }) {
               ['4-week change', lift.change_4w_pct == null ? '—' : `${lift.change_4w_pct > 0 ? '+' : ''}${lift.change_4w_pct}%`, 'vs 4+ weeks ago'],
               ['Sessions', String(lift.sessions), `last ${shortDate(lift.last_date)}`]].map(([l, v, s]) => (
               <div key={l} className="rounded-xl bg-[var(--surface-2)] px-3 py-2.5">
-                <div className="text-[11.5px] font-medium tracking-wide text-[var(--ink-muted)] uppercase">{l}</div>
+                <div className="text-[12.5px] font-medium text-[var(--ink-muted)]">{l}</div>
                 <div className="tabular text-[18px] font-semibold text-[var(--ink)]">{v}</div>
                 <div className="truncate text-[11.5px] text-[var(--ink-2)]">{s}</div>
               </div>

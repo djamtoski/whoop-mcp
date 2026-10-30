@@ -67,6 +67,8 @@ export interface Workout {
   kilojoules: number | null
   distance_km: number | null
   zone_minutes: Record<'z0' | 'z1' | 'z2' | 'z3' | 'z4' | 'z5', number> | null
+  /** Set when the dashboard joined split recordings into one session. */
+  parts?: number
 }
 
 export interface StrainDay {

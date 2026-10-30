@@ -26,7 +26,7 @@ function rolling(values: (number | null)[], w = 7) {
 function Stat({ label, value, unit, sub }: { label: string; value: string; unit?: string; sub?: string }) {
   return (
     <div className="min-w-0 rounded-xl bg-[var(--surface-2)] px-3 py-2.5">
-      <div className="truncate text-[11.5px] font-medium tracking-wide text-[var(--ink-muted)] uppercase">{label}</div>
+      <div className="truncate text-[12.5px] font-medium text-[var(--ink-muted)]">{label}</div>
       <div className="tabular text-[20px] font-semibold text-[var(--ink)]">{value}<span className="ml-1 text-[12px] font-normal text-[var(--ink-muted)]">{unit}</span></div>
       {sub && <div className="truncate text-[11.5px] text-[var(--ink-2)]">{sub}</div>}
     </div>
@@ -52,7 +52,7 @@ function WorkoutTable({ workouts }: { workouts: HistoryWorkout[] }) {
       }>
       <div className="overflow-x-auto">
         <table className="tabular w-full text-left text-[12.5px] text-[var(--ink-2)]">
-          <thead className="text-[11px] tracking-wide text-[var(--ink-muted)] uppercase">
+          <thead className="text-[12px] text-[var(--ink-muted)]">
             <tr>{['Date', 'Sport', 'Min', 'Strain', 'Avg HR', 'Max HR', 'kJ', 'km'].map((h) => <th key={h} className="px-2 py-1.5 font-medium">{h}</th>)}</tr>
           </thead>
           <tbody>
@@ -155,7 +155,7 @@ export function History() {
       <Card title="Monthly summary" subtitle="Whole history by month" icon={<BarChart3 className="size-4.5" />}>
         <div className="overflow-x-auto">
           <table className="tabular w-full text-left text-[12.5px] text-[var(--ink-2)]">
-            <thead className="text-[11px] tracking-wide text-[var(--ink-muted)] uppercase">
+            <thead className="text-[12px] text-[var(--ink-muted)]">
               <tr>{['Month', 'Recovery', 'HRV', 'RHR', 'Strain', 'Sleep h', 'Sleep %', 'Swim h', 'Bike h', 'Run h', 'Strength h'].map((c) => <th key={c} className="px-2 py-1.5 font-medium">{c}</th>)}</tr>
             </thead>
             <tbody>

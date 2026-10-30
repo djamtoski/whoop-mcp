@@ -28,7 +28,7 @@ export function LoadCard({ load, weeks }: { load: HistoryAnalytics['load']; week
             const lapsed = s.days == null || s.days > GAP_DAYS
             return (
               <div key={d.id} className="rounded-xl bg-[var(--surface-2)] px-3 py-2.5">
-                <div className="flex items-center gap-1.5 text-[11.5px] font-medium tracking-wide text-[var(--ink-muted)] uppercase">
+                <div className="flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--ink-muted)]">
                   <span className="size-2 rounded-full" style={{ background: d.color }} />{d.label}
                 </div>
                 <div className="tabular mt-0.5 flex items-center gap-1.5 text-[18px] font-semibold text-[var(--ink)]">

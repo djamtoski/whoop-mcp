@@ -2,6 +2,7 @@ import { Activity, Bike, Dumbbell, Flower2, Footprints, Timer, Waves } from 'luc
 import { useMemo, useState } from 'react'
 import { ActivitiesCard } from '@/components/watermelon/activities-card'
 import { ContinuousTabs } from '@/components/watermelon/continuous-tabs'
+import { mergeSplitSessions, sportName } from '@/lib/sports'
 import type { Discipline, StrainDay, Workout } from '@/types'
 import { Card, Tip, dayLabel } from './ui'
 
@@ -10,7 +11,7 @@ const META: Record<Discipline, { label: string; color: string; icon: typeof Wave
   bike: { label: 'Bike', color: 'var(--bike)', icon: Bike },
   run: { label: 'Run', color: 'var(--run)', icon: Footprints },
   tri: { label: 'Tri', color: 'var(--other)', icon: Timer },
-  strength: { label: 'Strength', color: 'var(--other)', icon: Dumbbell },
+  strength: { label: 'Strength', color: 'var(--strength)', icon: Dumbbell },
   recovery: { label: 'Recovery', color: 'var(--other)', icon: Flower2 },
   other: { label: 'Other', color: 'var(--other)', icon: Activity },
 }
@@ -45,7 +46,7 @@ export function WorkoutLog({ days }: { days: StrainDay[] }) {
   const [tab, setTab] = useState<'all' | Discipline>('all')
   const [range, setRange] = useState<7 | 14 | 28>(7)
   const [expanded, setExpanded] = useState(false)
-  const all = useMemo(() => days.slice(0, range).flatMap((d) => d.workouts).sort((a, b) => (b.start ?? '').localeCompare(a.start ?? '')), [days, range])
+  const all = useMemo(() => mergeSplitSessions(days.slice(0, range).flatMap((d) => d.workouts).sort((a, b) => (b.start ?? '').localeCompare(a.start ?? ''))), [days, range])
   const training = all.filter((w) => w.discipline !== 'recovery')
   const shown = tab === 'all' ? training : all.filter((w) => w.discipline === tab)
 
@@ -56,7 +57,7 @@ export function WorkoutLog({ days }: { days: StrainDay[] }) {
   const maxMin = Math.max(1, ...totals.map((t) => t.min))
 
   return (
-    <Card title="Triathlon Workout Log" subtitle={`${training.length} training sessions · last ${range} days`} icon={<Timer className="size-4.5" />}
+    <Card title="Workouts" subtitle={`${training.length} sessions in the last ${range} days`} icon={<Timer className="size-4.5" />}
       action={
         <div className="flex gap-1">
           {RANGES.map(([r, l]) => (
@@ -70,11 +71,11 @@ export function WorkoutLog({ days }: { days: StrainDay[] }) {
             const M = META[d]
             return (
               <div key={d} className="rounded-xl bg-[var(--surface-2)] px-3 py-2.5">
-                <div className="flex items-center gap-1.5 text-[11.5px] font-medium tracking-wide text-[var(--ink-muted)] uppercase">
+                <div className="flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--ink-muted)]">
                   <span className="size-2 rounded-full" style={{ background: M.color }} />{M.label}
                 </div>
-                <div className="tabular mt-0.5 text-[17px] font-semibold text-[var(--ink)]">{fmtDur(min)}</div>
-                <div className="tabular text-[11.5px] text-[var(--ink-2)]">{n} × · {km.toFixed(1)} km</div>
+                <div className="font-display tabular mt-0.5 text-[22px] leading-tight font-semibold text-[var(--ink)]">{fmtDur(min)}</div>
+                <div className="tabular text-[12px] text-[var(--ink-2)]">{n} {n === 1 ? 'session' : 'sessions'}{km > 0 ? ` · ${km.toFixed(1)} km` : ''}</div>
                 <div className="mt-2 h-1.5 w-full rounded-full bg-[var(--surface)]">
                   <div className="h-full rounded-full" style={{ width: `${(min / maxMin) * 100}%`, background: M.color }} />
                 </div>
@@ -106,8 +107,13 @@ export function WorkoutLog({ days }: { days: StrainDay[] }) {
                 const I = M.icon
                 return {
                   icon: <I className="size-5" style={{ color: M.color }} />,
-                  title: `${w.sport} · ${fmtDur(w.duration_min)}`,
-                  desc: [w.strain != null && `strain ${w.strain}`, w.avg_hr && `avg ${w.avg_hr}/${w.max_hr} bpm`, w.distance_km && `${w.distance_km} km`, w.kilojoules && `${w.kilojoules} kJ`].filter(Boolean).join(' · '),
+                  title: `${sportName(w.sport)}, ${fmtDur(w.duration_min)}`,
+                  desc: [
+                    w.distance_km && `${w.distance_km.toFixed(1)} km`,
+                    w.avg_hr && `HR ${w.avg_hr} avg, ${w.max_hr} max`,
+                    w.strain != null && `strain ${w.strain}`,
+                    (w.parts ?? 1) > 1 && `${w.parts} recordings joined`,
+                  ].filter(Boolean).join(' · '),
                   time: dayLabel(w.date),
                 }
               })}
@@ -117,7 +123,7 @@ export function WorkoutLog({ days }: { days: StrainDay[] }) {
             )}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-[11.5px] text-[var(--ink-muted)]">
-                <span>HR zone distribution</span>
+                <span>Heart rate zones</span>
                 <span className="flex gap-2">
                   {ZONES.map((z, i) => <span key={z} className="flex items-center gap-1"><span className="size-2 rounded-[2px]" style={{ background: ZONE_COLORS[i] }} />Z{i + 1}</span>)}
                 </span>
