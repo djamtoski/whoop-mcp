@@ -1,5 +1,6 @@
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { Moon, RefreshCw, Sun } from 'lucide-react'
+import { MotionConfig } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { isDemo, useInsights, useSummary } from './api'
 import { CoachFeed } from './components/CoachFeed'
@@ -9,9 +10,11 @@ import { StrengthTab } from './components/StrengthTab'
 import { RecoveryGauge } from './components/RecoveryGauge'
 import { SleepCard } from './components/SleepCard'
 import { StrainDial } from './components/StrainDial'
+import { TodayBand } from './components/TodayBand'
 import { TrendsCard } from './components/TrendsCard'
 import { WorkoutLog } from './components/WorkoutLog'
 import { LabeledProgressIndicator } from './components/watermelon/labeled-progress-indicator'
+import { longDate } from './lib/sports'
 
 const TABS = ['today', 'plan', 'strength', 'history'] as const
 type Tab = (typeof TABS)[number]
@@ -32,48 +35,58 @@ function useTheme() {
   return [theme, setTheme] as const
 }
 
+function tabFromHash(): Tab {
+  return TABS.find((t) => `#${t}` === window.location.hash) ?? 'today'
+}
+
 export default function App() {
   const { state, reload } = useSummary()
   const { items, live } = useInsights()
   const [theme, setTheme] = useTheme()
-  const [tab, setTabState] = useState<Tab>(() => (TABS.find((t) => `#${t}` === window.location.hash) ?? 'today'))
+  const [tab, setTabState] = useState<Tab>(tabFromHash)
   const setTab = (t: Tab) => {
     setTabState(t)
     window.history.replaceState(null, '', t === 'today' ? window.location.pathname + window.location.search : `#${t}`)
   }
+  // A typed or linked #plan / #strength / #history switches tabs; #coach (a link within Today) keeps Today.
+  useEffect(() => {
+    const onHash = () => setTabState(tabFromHash())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
   return (
+    <MotionConfig reducedMotion="user">
     <Tooltip.Provider>
       <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:py-8">
-        <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="size-2.5 rounded-full bg-[var(--good)]" />
-              <span className="text-[12px] font-semibold tracking-[0.18em] text-[var(--ink-muted)] uppercase">WHOOP · Triathlon</span>
+            <p className="flex items-center gap-2 text-[13px] text-[var(--ink-muted)]">
+              WHOOP triathlon dashboard
               {(isDemo || (state.status === 'ready' && state.data.demo)) && (
-                <span className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[11px] text-[var(--ink-muted)]">demo data</span>
+                <span className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[11px]">demo data</span>
               )}
-            </div>
-            <h1 className="mt-1 text-[26px] font-semibold tracking-tight text-[var(--ink)]">Readiness Dashboard</h1>
+            </p>
+            <h1 className="font-display text-[34px] leading-tight font-bold text-[var(--ink)]">{state.status === 'ready' ? longDate(new Date(state.data.generated_at)) : 'Today'}</h1>
           </div>
           <div className="flex items-center gap-2">
             {state.status === 'ready' && (
-              <span className="text-[12px] text-[var(--ink-muted)]">
+              <span className="text-[12.5px] text-[var(--ink-muted)]">
                 Updated {new Date(state.data.generated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
-            <button onClick={reload} aria-label="Refresh" className="rounded-full border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--ink-2)] hover:text-[var(--ink)]">
-              <RefreshCw className="size-4" />
+            <button onClick={reload} aria-label="Refresh" className="rounded-full border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--ink-2)] hover:text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--strain)] focus-visible:outline-none">
+              <RefreshCw className="size-4" aria-hidden />
             </button>
-            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme" className="rounded-full border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--ink-2)] hover:text-[var(--ink)]">
-              {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme" className="rounded-full border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--ink-2)] hover:text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--strain)] focus-visible:outline-none">
+              {theme === 'dark' ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
             </button>
           </div>
         </header>
 
         <nav className="mb-5 flex gap-1">
           {TABS.map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`rounded-full border px-4 py-1.5 text-[13px] font-medium capitalize ${tab === t ? 'border-[var(--ink-muted)] bg-[var(--surface-2)] text-[var(--ink)]' : 'border-[var(--border)] text-[var(--ink-2)] hover:text-[var(--ink)]'}`}>{t}</button>
+            <button key={t} onClick={() => setTab(t)} aria-current={tab === t ? 'page' : undefined} className={`rounded-full border px-4 py-1.5 text-[14px] font-medium capitalize focus-visible:ring-2 focus-visible:ring-[var(--strain)] focus-visible:outline-none ${tab === t ? 'border-[var(--ink-muted)] bg-[var(--surface-2)] text-[var(--ink)]' : 'border-[var(--border)] text-[var(--ink-2)] hover:text-[var(--ink)]'}`}>{t}</button>
           ))}
         </nav>
 
@@ -102,20 +115,24 @@ export default function App() {
         )}
 
         {tab === 'today' && state.status === 'ready' && (
+          <div className="flex flex-col gap-4">
+          <TodayBand data={state.data} latest={items[0]} />
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:col-span-8">
-              <RecoveryGauge rec={state.data.recovery} series={state.data.trends.series} hrvBaseline28={state.data.trends.baselines_28d.hrv} />
+              <RecoveryGauge rec={state.data.recovery} series={state.data.trends.series} baselines28={state.data.trends.baselines_28d} />
               <StrainDial today={state.data.strain.days[0]} days={state.data.strain.days} rec={state.data.recovery} />
               <SleepCard report={state.data.sleep} />
               <TrendsCard trends={state.data.trends} />
               <div className="md:col-span-2"><WorkoutLog days={state.data.workout_days ?? state.data.strain.days} /></div>
             </div>
             <div className="xl:col-span-4">
-              <div className="xl:sticky xl:top-6"><CoachFeed items={items} live={live} /></div>
+              <div id="coach" className="scroll-mt-6 xl:sticky xl:top-6"><CoachFeed items={items} live={live} /></div>
             </div>
+          </div>
           </div>
         )}
       </div>
     </Tooltip.Provider>
+    </MotionConfig>
   )
 }

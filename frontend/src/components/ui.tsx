@@ -25,7 +25,7 @@ export function Card({ title, subtitle, icon, action, className, children }: {
             </div>
           )}
           <div className="min-w-0">
-            <h2 className="truncate text-[15px] font-semibold tracking-tight text-[var(--ink)]">{title}</h2>
+            <h2 className="font-display truncate text-[18px] leading-tight font-semibold text-[var(--ink)]">{title}</h2>
             {subtitle && <p className="truncate text-[12.5px] text-[var(--ink-muted)]">{subtitle}</p>}
           </div>
         </div>
@@ -115,17 +115,29 @@ export function ArcGauge({ value, max, color, size = 180, band, children, label 
   )
 }
 
-export function Metric({ label, value, unit, delta, hint }: {
-  label: string; value: ReactNode; unit?: string; delta?: ReactNode; hint?: string
+export type Tone = 'good' | 'bad' | 'neutral'
+export const toneColor: Record<Tone, string> = { good: 'var(--good)', bad: 'var(--serious)', neutral: 'var(--ink-2)' }
+
+/**
+ * Tone of a deviation from baseline: past `threshold`, the direction `better` is good and the other bad.
+ * Inside the threshold it is noise and stays neutral.
+ */
+export function deviationTone(dev: number | null | undefined, threshold: number, better: 'up' | 'down'): Tone {
+  if (dev == null || Math.abs(dev) < threshold) return 'neutral'
+  return (dev > 0) === (better === 'up') ? 'good' : 'bad'
+}
+
+export function Metric({ label, value, unit, delta, tone = 'neutral', hint }: {
+  label: string; value: ReactNode; unit?: string; delta?: ReactNode; tone?: Tone; hint?: string
 }) {
   const body = (
     <div className="min-w-0 rounded-xl bg-[var(--surface-2)] px-3 py-2.5">
-      <div className="truncate text-[11.5px] font-medium tracking-wide text-[var(--ink-muted)] uppercase">{label}</div>
-      <div className="tabular mt-0.5 flex items-baseline gap-1 text-[18px] font-semibold text-[var(--ink)]">
+      <div className="truncate text-[12.5px] font-medium text-[var(--ink-muted)]">{label}</div>
+      <div className="font-display tabular mt-0.5 flex items-baseline gap-1 text-[24px] leading-tight font-semibold text-[var(--ink)]">
         {value ?? '—'}
-        {unit && value != null && <span className="text-[12px] font-normal text-[var(--ink-muted)]">{unit}</span>}
+        {unit && value != null && <span className="font-sans text-[12px] font-normal text-[var(--ink-muted)]">{unit}</span>}
       </div>
-      {delta && <div className="tabular truncate text-[11.5px] text-[var(--ink-2)]">{delta}</div>}
+      {delta && <div className="tabular truncate text-[12px]" style={{ color: toneColor[tone] }}>{delta}</div>}
     </div>
   )
   return hint ? <Tip content={hint}>{body}</Tip> : body

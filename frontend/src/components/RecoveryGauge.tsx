@@ -1,6 +1,6 @@
 import { HeartPulse } from 'lucide-react'
-import type { Recovery, TrendPoint } from '@/types'
-import { ArcGauge, Card, Metric, StatusPill, Tip, dayLabel, signed, zoneColor, zoneLabel } from './ui'
+import type { Recovery, TrendPoint, Trends } from '@/types'
+import { ArcGauge, Card, Metric, StatusPill, Tip, dayLabel, deviationTone, signed, zoneColor, zoneLabel } from './ui'
 
 function HrvSpark({ series, baseline }: { series: TrendPoint[]; baseline: number | null }) {
   const pts = series.filter((p) => p.hrv != null)
@@ -16,7 +16,7 @@ function HrvSpark({ series, baseline }: { series: TrendPoint[]; baseline: number
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-[11.5px] text-[var(--ink-muted)]">
-        <span>HRV · last 7 days</span>
+        <span>HRV, last 7 days</span>
         {baseline != null && (
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-px w-3 bg-[var(--ink-muted)]" /> 28-day baseline {baseline.toFixed(0)} ms
@@ -39,7 +39,10 @@ function HrvSpark({ series, baseline }: { series: TrendPoint[]; baseline: number
   )
 }
 
-export function RecoveryGauge({ rec, series, hrvBaseline28 }: { rec: Recovery; series: TrendPoint[]; hrvBaseline28: number | null }) {
+export function RecoveryGauge({ rec, series, baselines28 }: { rec: Recovery; series: TrendPoint[]; baselines28: Trends['baselines_28d'] }) {
+  // Compare to the 28-day baseline: the 7-day one drifts down with a bad week and hides it.
+  const hrvDev = rec.hrv_rmssd_ms != null && baselines28.hrv ? (100 * (rec.hrv_rmssd_ms - baselines28.hrv)) / baselines28.hrv : null
+  const rhrDev = rec.resting_hr != null && baselines28.rhr != null ? rec.resting_hr - baselines28.rhr : null
   const zone = rec.readiness_zone ?? null
   const color = zone ? zoneColor[zone] : 'var(--ink-muted)'
   return (
@@ -55,28 +58,29 @@ export function RecoveryGauge({ rec, series, hrvBaseline28 }: { rec: Recovery; s
         <div className="flex flex-col gap-4">
           <div className="flex flex-col items-center gap-4">
             <ArcGauge value={rec.recovery_score} max={100} color={color} label={`Recovery ${rec.recovery_score}%`}>
-              <div className="tabular text-[44px] leading-none font-semibold tracking-tight text-[var(--ink)]">
+              <div className="font-display tabular text-[52px] leading-none font-bold text-[var(--ink)]">
                 {rec.recovery_score ?? '—'}<span className="text-[20px] text-[var(--ink-muted)]">%</span>
               </div>
               <div className="mt-1 text-[12px] text-[var(--ink-muted)]">recovery</div>
             </ArcGauge>
             <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-3">
               <Metric label="HRV" value={rec.hrv_rmssd_ms?.toFixed(0)} unit="ms"
-                delta={rec.hrv_vs_baseline_pct != null ? `${signed(rec.hrv_vs_baseline_pct, 0, '%')} vs 7d` : undefined}
-                hint={`7-day baseline ${rec.hrv_baseline_7d_ms?.toFixed(0) ?? '—'} ms`} />
+                delta={hrvDev != null ? `${signed(hrvDev, 0, '%')} vs 28-day` : undefined} tone={deviationTone(hrvDev, 5, 'up')}
+                hint={`28-day baseline ${baselines28.hrv?.toFixed(0) ?? '—'} ms · 7-day ${rec.hrv_baseline_7d_ms?.toFixed(0) ?? '—'} ms`} />
               <Metric label="Resting HR" value={rec.resting_hr} unit="bpm"
-                delta={rec.rhr_vs_baseline_bpm != null ? `${signed(rec.rhr_vs_baseline_bpm, 0)} bpm vs 7d` : undefined} />
-              <Metric label="Stress (est.)" value={rec.stress_estimate?.score.toFixed(1)} unit="/ 3"
+                delta={rhrDev != null ? `${signed(rhrDev, 0)} bpm vs 28-day` : undefined} tone={deviationTone(rhrDev, 2, 'down')}
+                hint={`28-day baseline ${baselines28.rhr?.toFixed(0) ?? '—'} bpm · 7-day ${rec.rhr_baseline_7d?.toFixed(0) ?? '—'} bpm`} />
+              <Metric label="Stress (estimate)" value={rec.stress_estimate?.score.toFixed(1)} unit="/ 3"
                 delta={rec.stress_estimate?.level}
                 hint="Derived from HRV & RHR deviation vs your 7-day baseline — not WHOOP's Stress Monitor." />
-              <Metric label="SpO₂" value={rec.spo2_pct?.toFixed(1)} unit="%" />
-              <Metric label="Skin temp" value={rec.skin_temp_c?.toFixed(1)} unit="°C"
+              <Metric label="Blood oxygen" value={rec.spo2_pct?.toFixed(1)} unit="%" />
+              <Metric label="Skin temperature" value={rec.skin_temp_c?.toFixed(1)} unit="°C"
                 delta={rec.skin_temp_deviation_c != null ? `${signed(rec.skin_temp_deviation_c, 1, '°')} vs 7d` : undefined} />
-              <Metric label="Resp. rate" value={rec.respiratory_rate?.toFixed(1)} unit="rpm"
+              <Metric label="Breathing rate" value={rec.respiratory_rate?.toFixed(1)} unit="rpm"
                 delta={rec.respiratory_rate_deviation != null ? `${signed(rec.respiratory_rate_deviation, 1)} vs 7d` : undefined} />
             </div>
           </div>
-          <HrvSpark series={series} baseline={hrvBaseline28} />
+          <HrvSpark series={series} baseline={baselines28.hrv} />
           {rec.user_calibrating && <p className="text-[12px] text-[var(--ink-muted)]">WHOOP is still calibrating your baselines.</p>}
         </div>
       )}
