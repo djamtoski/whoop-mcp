@@ -24,7 +24,7 @@ export function TrendsCard({ trends }: { trends: Trends }) {
             ['ACWR', trends.acute_chronic_strain_ratio?.toFixed(2), 'acute:chronic'],
           ].map(([l, v, u]) => (
             <div key={l} className="rounded-xl bg-[var(--surface-2)] px-3 py-2.5">
-              <div className="text-[11.5px] font-medium tracking-wide text-[var(--ink-muted)] uppercase">{l}</div>
+              <div className="text-[12.5px] font-medium text-[var(--ink-muted)]">{l}</div>
               <div className="tabular text-[18px] font-semibold text-[var(--ink)]">{v ?? '—'}</div>
               <div className="truncate text-[11.5px] text-[var(--ink-2)]">{u}</div>
             </div>

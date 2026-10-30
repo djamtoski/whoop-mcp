@@ -110,7 +110,7 @@ export function PlanTab() {
         action={<button onClick={() => setShowSettings(!showSettings)} className="flex items-center gap-1 rounded-full border border-[var(--border)] px-2.5 py-1 text-[12px] text-[var(--ink-2)]"><Settings2 className="size-3.5" />{showSettings ? 'Close' : 'Settings'}</button>}>
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-baseline gap-2">
-            <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 text-[12px] font-semibold tracking-wide text-[var(--ink)] uppercase">{ph.name} phase</span>
+            <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 text-[12px] font-semibold text-[var(--ink)] capitalize">{ph.name} phase</span>
             <span className="text-[13px] text-[var(--ink-2)]">{ph.focus}</span>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -118,7 +118,7 @@ export function PlanTab() {
               const plannedMin = week.planned_minutes[k], doneMin = Math.round(done(k))
               return (
                 <div key={k} className="rounded-xl bg-[var(--surface-2)] px-3 py-2.5">
-                  <div className="flex items-center gap-1.5 text-[11.5px] font-medium tracking-wide text-[var(--ink-muted)] uppercase"><span className="size-2 rounded-full" style={{ background: SPORT[k].color }} />{SPORT[k].label}</div>
+                  <div className="flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--ink-muted)]"><span className="size-2 rounded-full" style={{ background: SPORT[k].color }} />{SPORT[k].label}</div>
                   <div className="tabular text-[17px] font-semibold text-[var(--ink)]">{fmtMin(doneMin)} <span className="text-[12px] font-normal text-[var(--ink-muted)]">/ {fmtMin(plannedMin)}</span></div>
                   <div className="mt-1.5 h-1.5 rounded-full bg-[var(--surface)]"><div className="h-full rounded-full" style={{ width: `${Math.min(100, plannedMin ? (100 * doneMin) / plannedMin : 0)}%`, background: SPORT[k].color }} /></div>
                 </div>
@@ -156,7 +156,7 @@ export function PlanTab() {
       <Card title="Your usual week" subtitle={`Sessions per week by weekday, last ${habits.weeks} training weeks · the plan places sessions on these days`} icon={<CalendarCheck className="size-4.5" />}>
         <div className="overflow-x-auto">
           <table className="tabular w-full min-w-[480px] text-center text-[12.5px]">
-            <thead><tr><th className="py-1 text-left text-[11px] font-medium text-[var(--ink-muted)] uppercase">Sport</th>{DAYS.map((d) => <th key={d} className="py-1 text-[11px] font-medium text-[var(--ink-muted)] uppercase">{d}</th>)}<th className="py-1 text-[11px] font-medium text-[var(--ink-muted)] uppercase">Usual time</th></tr></thead>
+            <thead><tr><th className="py-1 text-left text-[12px] font-medium text-[var(--ink-muted)]">Sport</th>{DAYS.map((d) => <th key={d} className="py-1 text-[12px] font-medium text-[var(--ink-muted)]">{d}</th>)}<th className="py-1 text-[12px] font-medium text-[var(--ink-muted)]">Usual time</th></tr></thead>
             <tbody>
               {(Object.keys(SPORT) as TrainingDiscipline[]).map((k) => (
                 <tr key={k} className="border-t border-[var(--border)]">

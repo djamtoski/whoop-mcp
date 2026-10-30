@@ -2,6 +2,13 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Barlow: the plain, slightly condensed grotesque of race numbers and timing boards.
+   The condensed cut carries headings and the big numbers; the regular cut carries everything else. */
+@theme {
+  --font-sans: "Barlow", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Barlow Condensed", "Barlow", ui-sans-serif, sans-serif;
+}
+
 /* Design tokens. Status + discipline colours validated with the dataviz palette checker. */
 :root {
   color-scheme: light;
@@ -61,9 +68,12 @@
 html, body {
   background: var(--page);
   color: var(--ink);
-  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;
 }
+
+h1, h2, h3 { text-wrap: balance; }
 
 .tabular { font-variant-numeric: tabular-nums; }
 
