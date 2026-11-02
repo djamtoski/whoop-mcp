@@ -33,9 +33,9 @@ def test_load_maths_matches_rpe_tables():
 
 def test_season_runs_from_start_to_race_with_phases_in_order():
     p = season()
-    assert p["meta"]["totalWeeks"] == 44
+    assert p["meta"]["totalWeeks"] == 45
     assert [ph["key"] for ph in p["phases"]] == ["base1", "base2", "build", "peak", "taper", "race"]
-    assert p["weeks"][0]["startDate"] == "2026-11-09" and p["weeks"][-1]["endDate"] == "2027-09-12"
+    assert p["weeks"][0]["startDate"] == "2026-11-02" and p["weeks"][-1]["endDate"] == "2027-09-12"
     race_day = p["weeks"][-1]["days"][-1]["workouts"]
     assert race_day[0]["sport"] == "race"
     # 3:1 cycles: every fourth week of base and build is a recovery week
@@ -96,8 +96,8 @@ def test_new_library_exercises_reach_an_existing_database():
 
 def test_mark_done_ticks_matching_whoop_workouts_and_logged_lifts():
     p = season()
-    workouts = [{"date": "2026-11-09", "discipline": "swim", "duration_min": 38}]
-    program.mark_done(p, workouts, {"2026-11-09"}, date(2026, 11, 10))
+    workouts = [{"date": "2026-11-02", "discipline": "swim", "duration_min": 38}]
+    program.mark_done(p, workouts, {"2026-11-02"}, date(2026, 11, 3))
     mon = p["weeks"][0]["days"][0]["workouts"]
     assert all(w["completed"] for w in mon)
     tue = p["weeks"][0]["days"][1]["workouts"]
@@ -131,6 +131,6 @@ def test_api_returns_the_season_and_validates_settings():
 
     c = TestClient(app, base_url="http://localhost")
     r = c.get("/api/program?demo=1")
-    assert r.status_code == 200 and r.json()["program"]["meta"]["totalWeeks"] == 44
+    assert r.status_code == 200 and r.json()["program"]["meta"]["totalWeeks"] == 45
     assert c.put("/api/program/settings", json={"bike": "tandem"}).json()["detail"] == "bike must be gym or road"
     assert c.put("/api/program/settings", json={"weekly_hours": 9}).json()["weekly_hours"] == 9.0

@@ -24,7 +24,7 @@ from . import config
 DEFAULTS: dict[str, Any] = {
     "race_name": "Half Ironman 70.3",
     "race_date": "2027-09-12",
-    "start_date": "2026-11-09",
+    "start_date": "2026-11-02",
     "weekly_hours": 8.5,      # base target; build weeks go above it
     "bike": "gym",            # gym | road
     "run_lthr": None,         # bpm from the 30 min run test; None = estimated from max HR
