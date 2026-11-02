@@ -282,7 +282,7 @@ function WeekNav({ week, total, current, weeks, onGo }: { week: ProgramWeek; tot
   )
 }
 
-function WeekSummary({ week, today }: { week: ProgramWeek; today: string }) {
+function WeekSummary({ week, today, selected, onSelect }: { week: ProgramWeek; today: string; selected: number; onSelect: (i: number) => void }) {
   const done = week.days.flatMap((d) => d.workouts).filter((w) => w.completed).reduce((a, w) => a + (w.doneMinutes ?? w.durationMinutes), 0)
   const sports = (['swim', 'bike', 'run', 'strength'] as const).filter((k) => week.summary.bySport[k])
   return (
@@ -304,22 +304,23 @@ function WeekSummary({ week, today }: { week: ProgramWeek; today: string }) {
           )
         })}
       </div>
-      <nav aria-label="Days" className="grid grid-cols-7 gap-1">
-        {week.days.map((d) => {
+      <div role="tablist" aria-label="Days" className="grid grid-cols-7 gap-1">
+        {week.days.map((d, i) => {
           const isToday = d.date === today
+          const isSelected = i === selected
           const active = d.workouts.filter((w) => w.sport !== 'rest')
           return (
-            <button key={d.date} onClick={() => document.getElementById(`day-${d.date}`)?.scrollIntoView({ block: 'start' })}
-              className={`flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-center focus-visible:ring-2 focus-visible:ring-[var(--strain)] focus-visible:outline-none ${isToday ? 'bg-[color-mix(in_srgb,var(--strain)_14%,transparent)] ring-1 ring-[var(--strain)]' : 'bg-[var(--surface-2)] hover:bg-[color-mix(in_srgb,var(--surface-2)_80%,var(--ink)_6%)]'}`}>
-              <span className="text-[12px] text-[var(--ink-muted)]">{weekdayFmt.format(at(d.date))}</span>
-              <span className="font-display tabular text-[18px] leading-none font-semibold text-[var(--ink)]">{at(d.date).getDate()}</span>
+            <button key={d.date} role="tab" aria-selected={isSelected} aria-controls="day-panel" onClick={() => onSelect(i)}
+              className={`flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-center transition-colors focus-visible:ring-2 focus-visible:ring-[var(--strain)] focus-visible:outline-none ${isSelected ? 'bg-[var(--ink)]' : isToday ? 'bg-[color-mix(in_srgb,var(--strain)_14%,transparent)] ring-1 ring-[var(--strain)]' : 'bg-[var(--surface-2)] hover:bg-[color-mix(in_srgb,var(--surface-2)_80%,var(--ink)_6%)]'}`}>
+              <span className={`text-[12px] ${isSelected ? 'text-[var(--surface)]/70' : 'text-[var(--ink-muted)]'}`}>{isToday ? 'Today' : weekdayFmt.format(at(d.date))}</span>
+              <span className={`font-display tabular text-[18px] leading-none font-semibold ${isSelected ? 'text-[var(--surface)]' : 'text-[var(--ink)]'}`}>{at(d.date).getDate()}</span>
               <span className="flex h-2 items-center gap-0.5" aria-label={active.map((w) => SPORT[w.sport].label).join(', ') || 'Rest'}>
-                {active.length ? active.map((w) => <span key={w.id} className="size-1.5 rounded-full" style={{ background: w.completed ? 'var(--good)' : SPORT[w.sport].color }} />) : <span className="text-[10px] text-[var(--ink-muted)]">rest</span>}
+                {active.length ? active.map((w) => <span key={w.id} className="size-1.5 rounded-full" style={{ background: w.completed ? 'var(--good)' : SPORT[w.sport].color }} />) : <span className={`text-[10px] ${isSelected ? 'text-[var(--surface)]/70' : 'text-[var(--ink-muted)]'}`}>rest</span>}
               </span>
             </button>
           )
         })}
-      </nav>
+      </div>
     </section>
   )
 }
@@ -328,7 +329,7 @@ function DayPlan({ day, today, data }: { day: ProgramWeek['days'][number]; today
   const isToday = day.date === today
   const minutes = day.workouts.reduce((a, w) => a + w.durationMinutes, 0)
   return (
-    <section id={`day-${day.date}`} aria-label={longFmt.format(at(day.date))} className="scroll-mt-24 rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-4"
+    <section id="day-panel" role="tabpanel" aria-label={longFmt.format(at(day.date))} className="rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-4"
       style={{ boxShadow: isToday ? 'inset 0 3px 0 var(--strain)' : undefined }}>
       <header className="mb-3 flex items-baseline justify-between gap-2">
         <h3 className="font-display text-[20px] font-semibold text-[var(--ink)]">{longFmt.format(at(day.date))}{isToday && <span className="ml-2 align-middle text-[13px] font-medium text-[var(--strain)]">Today</span>}</h3>
@@ -404,27 +405,39 @@ function LoadCalculator({ maxes }: { maxes: ProgramResponse['maxes'] }) {
 export function ProgramTab() {
   const { data, error, reload } = useProgram()
   const [picked, setPicked] = useState<number | null>(null)
+  const [pickedDay, setPickedDay] = useState<number | null>(null)
   const navRef = useRef<HTMLDivElement>(null)
   const total = data?.program.weeks.length ?? 0
   const shown = picked ?? data?.current_week ?? 1
   const week = data?.program.weeks.find((w) => w.weekNumber === shown)
+  // Without a pick: today in the current week, Monday in any other.
+  const todayIdx = week ? week.days.findIndex((d) => d.date === data?.today) : -1
+  const dayIdx = pickedDay ?? Math.max(0, todayIdx)
 
-  const go = useCallback((n: number) => {
+  const go = useCallback((n: number, day: number | null = null) => {
     if (n < 1 || n > total) return
     setPicked(n)
+    setPickedDay(day)
     // Keep the week header in view when switching from further down the page.
     if (navRef.current && navRef.current.getBoundingClientRect().top < 0) navRef.current.scrollIntoView({ block: 'start' })
   }, [total])
 
+  const stepDay = useCallback((delta: number) => {
+    const next = dayIdx + delta
+    if (next < 0) go(shown - 1, 6)
+    else if (next > 6) go(shown + 1, 0)
+    else setPickedDay(next)
+  }, [dayIdx, go, shown])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target instanceof Element && e.target.closest('input, select, textarea')) || e.altKey || e.ctrlKey || e.metaKey) return
-      if (e.key === 'ArrowLeft') go(shown - 1)
-      if (e.key === 'ArrowRight') go(shown + 1)
+      if (e.key === 'ArrowLeft') stepDay(-1)
+      if (e.key === 'ArrowRight') stepDay(1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [go, shown])
+  }, [stepDay])
 
   if (error) return <div className="mx-auto mt-10 max-w-lg rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-6 text-center text-sm text-[var(--ink-2)]">Couldn't load the program. {error}</div>
   if (!data || !week) {
@@ -444,11 +457,15 @@ export function ProgramTab() {
       </div>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_360px]">
         <div className="flex min-w-0 flex-col gap-3">
-          <WeekSummary week={week} today={data.today} />
-          {week.days.map((d) => <DayPlan key={d.date} day={d} today={data.today} data={data} />)}
+          <WeekSummary week={week} today={data.today} selected={dayIdx} onSelect={setPickedDay} />
+          <DayPlan day={week.days[dayIdx]} today={data.today} data={data} />
           <div className="flex justify-between gap-2 pt-1">
-            <button onClick={() => go(week.weekNumber - 1)} disabled={week.weekNumber <= 1} className={step}><ChevronLeft className="size-4" aria-hidden />Week {week.weekNumber - 1}</button>
-            <button onClick={() => go(week.weekNumber + 1)} disabled={week.weekNumber >= total} className={step}>Week {week.weekNumber + 1}<ChevronRight className="size-4" aria-hidden /></button>
+            <button onClick={() => stepDay(-1)} disabled={week.weekNumber <= 1 && dayIdx === 0} className={step}>
+              <ChevronLeft className="size-4" aria-hidden />{dayIdx === 0 ? `Week ${week.weekNumber - 1}` : weekdayFmt.format(at(week.days[dayIdx - 1].date))}
+            </button>
+            <button onClick={() => stepDay(1)} disabled={week.weekNumber >= total && dayIdx === 6} className={step}>
+              {dayIdx === 6 ? `Week ${week.weekNumber + 1}` : weekdayFmt.format(at(week.days[dayIdx + 1].date))}<ChevronRight className="size-4" aria-hidden />
+            </button>
           </div>
         </div>
         <aside className="flex flex-col gap-4 xl:sticky xl:top-20 xl:self-start">

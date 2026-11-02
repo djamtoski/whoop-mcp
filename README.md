@@ -94,8 +94,9 @@ The dashboard has five tabs:
 - **Plan**: this week's Half Ironman (70.3) plan. The phase comes from the race date (base, build, peak, taper),
   sessions are placed on the days you usually train each sport, today's sessions adjust to your recovery, and
   WHOOP workouts tick sessions off. Settings: race, date, weekly hours, gym, long-ride, long-run and rest days.
-- **Program**: the season from its start week to race day, one week at a time (arrows, ← → keys, the phase
-  timeline or the week menu; it opens on the current week), built with the Claude Coach method
+- **Program**: the season from its start week to race day, one week and one day at a time: day tabs switch the
+  day, the arrows, phase timeline or week menu switch the week, and ← → step through days (rolling into the next
+  week). It opens on today. Built with the Claude Coach method
   (base 1, base 2, build, peak, taper, race week; 3:1 load and recovery weeks). Each day's swim, bike and run
   sessions have full instructions and HR or CSS zones; the full-body A/B/C strength sessions show sets × reps
   at a target RPE and the load in kg from your estimated 1RMs (best logged sets of the last 8 weeks, RPE-aware).
