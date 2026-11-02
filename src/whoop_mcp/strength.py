@@ -40,6 +40,18 @@ LIBRARY: list[tuple[str, str, tuple[str, ...], str, str, bool]] = [
     ("Pull-up", "pull", ("back", "biceps"), "pull", "upper", True),
     ("Lat Pulldown", "pull", ("back", "biceps"), "pull", "upper", False),
     ("Face Pull", "pull", ("shoulders", "back"), "pull", "upper", False),
+    ("Chin-up", "pull", ("back", "biceps"), "pull", "upper", True),
+    ("Single-Leg Romanian Deadlift", "hinge", ("hamstrings", "glutes"), "pull", "lower", False),
+    ("Nordic Hamstring Curl", "hinge", ("hamstrings",), "none", "lower", True),
+    ("ATG Split Squat", "lunge", ("quads", "glutes"), "none", "lower", False),
+    ("Seated Good Morning", "hinge", ("hamstrings", "glutes"), "none", "lower", False),
+    ("Broad Jump", "squat", ("quads", "glutes"), "none", "lower", True),
+    ("Single-Arm Dumbbell Row", "pull", ("back", "biceps"), "pull", "upper", False),
+    ("Rear Delt Fly", "pull", ("shoulders", "back"), "pull", "upper", False),
+    ("Copenhagen Plank", "core", ("core",), "none", "core", True),
+    ("Hanging Leg Raise", "core", ("core",), "none", "core", True),
+    ("Cable Wood Chopper", "core", ("core",), "none", "core", False),
+    ("Dragon Flag", "core", ("core",), "none", "core", True),
     ("Plank", "core", ("core",), "none", "core", True),
     ("Pallof Press", "core", ("core",), "none", "core", False),
     ("Farmer Carry", "carry", ("core", "back"), "none", "core", False),
@@ -85,10 +97,10 @@ def connect():
     con.execute("PRAGMA foreign_keys = ON")
     try:
         con.executescript(SCHEMA)
-        if not con.execute("SELECT 1 FROM exercises LIMIT 1").fetchone():
-            con.executemany(
-                "INSERT INTO exercises (name, pattern, muscles, push_pull, region, bodyweight) VALUES (?, ?, ?, ?, ?, ?)",
-                [(n, p, json.dumps(list(m)), pp, r, int(bw)) for n, p, m, pp, r, bw in LIBRARY])
+        # Library entries added in later versions reach existing databases too; names are unique.
+        con.executemany(
+            "INSERT OR IGNORE INTO exercises (name, pattern, muscles, push_pull, region, bodyweight) VALUES (?, ?, ?, ?, ?, ?)",
+            [(n, p, json.dumps(list(m)), pp, r, int(bw)) for n, p, m, pp, r, bw in LIBRARY])
         yield con
         con.commit()
     finally:
