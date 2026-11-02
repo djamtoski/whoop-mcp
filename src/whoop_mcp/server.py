@@ -21,6 +21,9 @@ mcp = FastMCP(
         "Lifts (sets, reps, kg) are not in WHOOP's API: log them with log_strength_session and read "
         "them with get_strength_progress. get_training_plan returns this week's 70.3 plan adjusted "
         "for today's recovery; update_training_plan changes race date, hours and training days. "
+        "get_training_program returns any week of the periodized season program (to race day) with "
+        "exercise loads from estimated 1RMs; update_training_program sets race date, hours, bike and "
+        "test results (LTHR, CSS). "
         f"Dashboard: http://localhost:{config.PORT}"
     ),
 )
@@ -217,3 +220,64 @@ async def update_training_plan(race_date: str | None = None, race_name: str | No
         return {"ok": True, "settings": await asyncio.to_thread(plan.save_settings, patch)}
     except (ValueError, TypeError) as e:
         return {"error": str(e)}
+
+
+@mcp.tool
+async def get_training_program(week: str = "current") -> dict[str, Any]:
+    """One week of the season program (periodized 70.3 plan to race day): each day's swim/bike/run
+    sessions with full instructions and zones, and the strength session's exercises with sets, reps,
+    target RPE and today's load in kg from the athlete's estimated 1RMs. Also returns the phase
+    layout, training zones and the estimated 1RMs.
+
+    Args:
+        week: "current", "next", a week number ("12") or a date in that week (YYYY-MM-DD).
+    """
+    from . import views
+
+    async def run() -> dict[str, Any]:
+        ov = await views.program_overview(service)
+        weeks = ov["program"]["weeks"]
+        cur = ov["current_week"] or 1
+        if week in ("current", ""):
+            n = cur
+        elif week == "next":
+            n = cur + 1
+        elif week.isdigit():
+            n = int(week)
+        else:
+            n = next((w["weekNumber"] for w in weeks if w["startDate"] <= week <= w["endDate"]), 0)
+        picked = next((w for w in weeks if w["weekNumber"] == n), None)
+        if picked is None:
+            return {"error": f"No week {week!r}: the program has weeks 1-{len(weeks)}."}
+        for d in picked["days"]:
+            for w in d["workouts"]:
+                w.pop("parts", None)
+        return {"week": picked, "phases": ov["program"]["phases"], "zones": ov["program"]["zones"],
+                "estimated_1rm": ov["maxes"], "settings": ov["settings"], "recovery_today": ov["recovery_today"],
+                "dashboard_url": f"http://localhost:{config.PORT}/#program"}
+
+    return await _safe(run())
+
+
+@mcp.tool
+async def update_training_program(race_date: str | None = None, race_name: str | None = None,
+                                  start_date: str | None = None, weekly_hours: float | None = None,
+                                  bike: str | None = None, run_lthr: int | None = None,
+                                  bike_lthr: int | None = None, css: str | None = None) -> dict[str, Any]:
+    """Change the season program; only the arguments you pass change.
+
+    Args:
+        race_date / start_date: YYYY-MM-DD (the start snaps to its Monday; 8-60 weeks apart).
+        weekly_hours: base-phase weekly hours, 4-15 (build weeks go about 30% above it).
+        bike: "gym" until a road bike arrives, then "road" (long rides move outdoors).
+        run_lthr / bike_lthr: bpm from the week-1 30 min run and 20 min bike tests.
+        css: swim threshold pace per 100 m from the 400/200 m test, e.g. "1:55".
+    """
+    from . import program
+
+    patch = {k: v for k, v in {"race_date": race_date, "race_name": race_name, "start_date": start_date,
+                               "weekly_hours": weekly_hours, "bike": bike, "run_lthr": run_lthr,
+                               "bike_lthr": bike_lthr, "css": css}.items() if v is not None}
+    if problem := await asyncio.to_thread(program.check_settings, patch):
+        return {"error": problem}
+    return {"ok": True, "settings": await asyncio.to_thread(program.save_settings, patch)}

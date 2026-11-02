@@ -160,6 +160,32 @@ async def plan_settings(body: PlanSettingsIn):
     return await _save(plan.save_settings, patch)
 
 
+class ProgramSettingsIn(BaseModel):
+    race_name: str | None = None
+    race_date: str | None = None
+    start_date: str | None = None
+    weekly_hours: float | None = None
+    bike: str | None = None
+    run_lthr: int | None = None
+    bike_lthr: int | None = None
+    css: str | None = None
+
+
+@app.get("/api/program")
+async def program_season(demo: bool = Query(False)):
+    return await views.program_overview(_demo if demo else _live)
+
+
+@app.put("/api/program/settings")
+async def program_settings(body: ProgramSettingsIn):
+    from . import program
+
+    patch = body.model_dump(exclude_unset=True)
+    if problem := await asyncio.to_thread(program.check_settings, patch):
+        return _bad(problem)
+    return await _save(program.save_settings, patch)
+
+
 @app.get("/api/insights")
 async def get_insights():
     return insights.list_insights()
