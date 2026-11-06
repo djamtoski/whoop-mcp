@@ -263,7 +263,8 @@ async def get_training_program(week: str = "current") -> dict[str, Any]:
 async def update_training_program(race_date: str | None = None, race_name: str | None = None,
                                   start_date: str | None = None, weekly_hours: float | None = None,
                                   bike: str | None = None, run_lthr: int | None = None,
-                                  bike_lthr: int | None = None, css: str | None = None) -> dict[str, Any]:
+                                  bike_lthr: int | None = None, css: str | None = None,
+                                  tuneup_date: str | None = None, tuneup_name: str | None = None) -> dict[str, Any]:
     """Change the season program; only the arguments you pass change.
 
     Args:
@@ -272,12 +273,16 @@ async def update_training_program(race_date: str | None = None, race_name: str |
         bike: "gym" until a road bike arrives, then "road" (long rides move outdoors).
         run_lthr / bike_lthr: bpm from the week-1 30 min run and 20 min bike tests.
         css: swim threshold pace per 100 m from the 400/200 m test, e.g. "1:55".
+        tuneup_date: YYYY-MM-DD of a half marathon inside the season, or "" to clear it; the 5 weeks
+            up to it become a run-focused block (5 runs, 2 swims, no bike).
+        tuneup_name: name of that race.
     """
     from . import program
 
     patch = {k: v for k, v in {"race_date": race_date, "race_name": race_name, "start_date": start_date,
                                "weekly_hours": weekly_hours, "bike": bike, "run_lthr": run_lthr,
-                               "bike_lthr": bike_lthr, "css": css}.items() if v is not None}
+                               "bike_lthr": bike_lthr, "css": css, "tuneup_date": tuneup_date,
+                               "tuneup_name": tuneup_name}.items() if v is not None}
     if problem := await asyncio.to_thread(program.check_settings, patch):
         return {"error": problem}
     return {"ok": True, "settings": await asyncio.to_thread(program.save_settings, patch)}

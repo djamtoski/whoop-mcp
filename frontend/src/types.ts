@@ -246,7 +246,7 @@ export interface ProgramWorkout {
 
 export interface ProgramWeek {
   weekNumber: number; startDate: string; endDate: string; phase: string; phaseKey: string; focus: string
-  targetHours: number; isRecoveryWeek: boolean
+  targetHours: number; isRecoveryWeek: boolean; tuneup?: boolean
   days: { date: string; dayOfWeek: string; workouts: ProgramWorkout[] }[]
   summary: { totalHours: number; bySport: Record<string, { sessions: number; hours: number }> }
 }
@@ -258,6 +258,7 @@ export interface HrZone { zone: number; name: string; percentLow: number; percen
 export interface ProgramSettings {
   race_name: string; race_date: string; start_date: string; weekly_hours: number; bike: 'gym' | 'road'
   run_lthr: number | null; bike_lthr: number | null; css: string | null
+  tuneup_date: string | null; tuneup_name: string
 }
 
 export interface ProgramResponse {

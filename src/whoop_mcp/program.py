@@ -30,7 +30,10 @@ DEFAULTS: dict[str, Any] = {
     "run_lthr": None,         # bpm from the 30 min run test; None = estimated from max HR
     "bike_lthr": None,        # bpm from the 20 min bike test
     "css": None,              # "m:ss" per 100 m from the 400/200 m test
+    "tuneup_date": None,      # YYYY-MM-DD of a half marathon inside the season; the weeks before it run-focused
+    "tuneup_name": "Half marathon",
 }
+TUNEUP_WEEKS = 5              # length of the run-focused block that ends on the tune-up race week
 BIKES = ("gym", "road")
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 SWIM_MIN_PER_100 = 2.4        # time per 100 m including rest, until a CSS test says otherwise
@@ -93,6 +96,17 @@ def _normalize_settings(patch: dict[str, Any]) -> tuple[dict[str, Any] | None, s
     if s["css"] not in (None, "") and _parse_css(s["css"]) is None:
         return None, "css must be m:ss per 100 m, e.g. 1:55"
     s["css"] = s["css"] or None
+    if s["tuneup_date"] in (None, ""):
+        s["tuneup_date"] = None
+    else:
+        try:
+            tu = date.fromisoformat(s["tuneup_date"])
+        except (TypeError, ValueError):
+            return None, "tuneup_date must be YYYY-MM-DD"
+        if not date.fromisoformat(s["start_date"]) + timedelta(days=7) <= tu < _monday(race) - timedelta(weeks=8):
+            return None, "tuneup_date must fall after week 1 and at least 8 weeks before the race"
+        s["tuneup_date"] = str(tu)
+    s["tuneup_name"] = str(s["tuneup_name"] or DEFAULTS["tuneup_name"])[:80]
     s["race_name"] = str(s["race_name"] or DEFAULTS["race_name"])[:80]
     return s, None
 
@@ -405,6 +419,57 @@ def _endurance(phase: str, i: int, p: float, f: float, rec: bool, week1: bool, d
     return s
 
 
+# The half-marathon block, one row per week counting back from race week: key session, long run (min), easy run (min).
+HM_WEEKS = [
+    ("5×1 km at goal pace (5:40/km), 2 min jog", 31, 75, 35),
+    ("2×3 km at goal pace (5:40/km), 3 min jog", 37, 85, 40),
+    ("10 km time trial: under 55 min means sub-2 is on", 55, 95, 40),
+    ("6 km continuous at goal pace (5:40/km)", 34, 75, 40),
+    ("3×1 km at goal pace, 2 min jog", 19, 0, 30),
+]
+
+
+def _half_marathon(i: int, d: list[date], settings: dict[str, Any], wn: int) -> dict[int, list[dict[str, Any]]]:
+    """Run-focused week `i` (0-4) of the tune-up block: 5 runs, 2 swims, no bike; i == 4 is race week."""
+    w = f"w{wn}"
+    s: dict[int, list[dict[str, Any]]] = {k: [] for k in range(7)}
+    key, key_min, long_min, easy = HM_WEEKS[min(i, len(HM_WEEKS) - 1)]
+    race_week = i == len(HM_WEEKS) - 1
+    race_day = date.fromisoformat(settings["tuneup_date"]).weekday() if race_week else None
+    swim = lambda wid, day, name: _swim(wid, "endurance", name, [(300, "easy"), (400, "drills: catch-up, fingertip drag (8×50)"),  # noqa: E731
+                                                                  (_r100(600 if race_week else 900), _pick(SWIM_AEROBIC, i)), (200, "easy")],
+                                        "Z2", "AM", "Keeps the swim moving while running is the priority. Easy on the legs.")
+    s[0].append(_wo(f"{w}-mon-run", "run", "easy", "Easy run", [(easy, "Z2, conversational"), (5, "6×20 s strides")], "Z2", "AM",
+                    "Easy aerobic volume. Hold 134-140 bpm, even if that feels slow."))
+    s[1].append(swim(f"{w}-tue-swim", 1, "Aerobic swim"))
+    s[2].append(_wo(f"{w}-wed-run", "run", "test" if i == 2 else "quality", "10 km time trial" if i == 2 else "Goal-pace run",
+                    [(15, "easy + 4 strides"), (key_min, key), (10, "easy")], "Z3-Z4", "AM",
+                    "The one hard run of the week. Even splits; the last rep should feel like the first."))
+    if not race_week:
+        s[3].append(_wo(f"{w}-thu-run", "run", "easy", "Recovery run", [(_r5(easy * 0.7), "Z1-Z2, very easy")], "Z2", "AM",
+                        "Short and slow: blood flow for the legs, nothing more."))
+        s[4].append(_wo(f"{w}-fri-run", "run", "easy", "Easy run", [(easy, "Z2")], "Z2", "AM", "Easy miles before the weekend."))
+        s[5].append(swim(f"{w}-sat-swim", 5, "Easy swim"))
+        s[6].append(_wo(f"{w}-sun-run", "run", "long", "Long run",
+                        [(long_min, "Z2" + (", last 3 km at goal pace (5:40/km)" if i == 2 else ""))], "Z2", "AM",
+                        "The run that gets you to 21 km. Water and 30 g carbs from 60 min."))
+    else:
+        s[3].append(_wo(f"{w}-thu-run", "run", "easy", "Shake-out", [(20, "easy"), (5, "4×20 s strides")], "Z2", "AM", "Last run before the race."))
+        s[race_day].append(_wo(f"{w}-race", "race", "race", "RACE: " + settings["tuneup_name"],
+                               [(15, "easy jog + 3 strides"), (120, "21.1 km at 5:40/km; first 5 km at 5:45, then settle")], "Race", "AM",
+                               "Sub-2 needs 5:41/km. Don't bank time early. Gel at 7 and 14 km, water at every station."))
+    return s
+
+
+def _tuneup_week(settings: dict[str, Any], start: date, wn: int) -> int | None:
+    """Index 0-4 of week `wn` in the half-marathon block, or None outside it (week 1 always stays the test week)."""
+    if not settings.get("tuneup_date") or wn == 1:
+        return None
+    race_wn = (_monday(date.fromisoformat(settings["tuneup_date"])) - start).days // 7 + 1
+    i = TUNEUP_WEEKS - 1 - (race_wn - wn)
+    return i if 0 <= i < TUNEUP_WEEKS else None
+
+
 def _minutes(text: str) -> list[int]:
     """Work minutes in an interval string like '3×10 min Z4, 3 min jog' (work plus recoveries between)."""
     import re
@@ -535,11 +600,18 @@ def build(settings: dict[str, Any] | None = None, body: dict[str, Any] | None = 
                 f *= RECOVERY_FACTOR
             ws = start + timedelta(weeks=wn - 1)
             dates = [ws + timedelta(days=k) for k in range(7)]
-            by_day = _endurance(key, load_i, p, f, rec, week1, dates, settings, wn)
-            letters = {"base1": "ABC", "base2": "ABC", "build": "AB", "peak": "AB", "taper": "A" if j == 0 else "", "race": ""}[key]
-            lift_days = {"ABC": (0, 2, 4), "AB": (0, 2), "A": (0,), "": ()}[letters]
+            hm = _tuneup_week(settings, start, wn)
+            if hm is not None:
+                rec = False  # the block has its own easier race week
+                by_day = _half_marathon(hm, dates, settings, wn)
+                letters = "AB" if hm < TUNEUP_WEEKS - 1 else "A"
+                lift_days = (0, 4)
+            else:
+                by_day = _endurance(key, load_i, p, f, rec, week1, dates, settings, wn)
+                letters = {"base1": "ABC", "base2": "ABC", "build": "AB", "peak": "AB", "taper": "A" if j == 0 else "", "race": ""}[key]
+                lift_days = {"ABC": (0, 2, 4), "AB": (0, 2), "A": (0,), "": ()}[letters]
             for letter, day in zip(letters, lift_days):
-                by_day[day].append(strength_session(letter, key, load_i, rec, week1, wn, wn))
+                by_day[day].append(strength_session(letter, key, load_i, rec or hm == TUNEUP_WEEKS - 1, week1, wn, wn))
             days = []
             for k, d in enumerate(dates):
                 wos = sorted(by_day[k], key=lambda w: w["slot"])
@@ -548,7 +620,7 @@ def build(settings: dict[str, Any] | None = None, body: dict[str, Any] | None = 
                             "description": "Calf eccentrics (3×15 straight + 3×15 bent knee), right-hip routine, left-shoulder wall slides.",
                             "durationMinutes": 0, "humanReadable": "Full rest. Walk if you like.", "completed": False, "slot": "AM"}]
                 days.append({"date": str(d), "dayOfWeek": DAYS[k], "workouts": wos})
-            if key not in ("taper", "race") and not week1:
+            if key not in ("taper", "race") and not week1 and hm is None:
                 _fit_to_hours(days, hours * f)
             by_sport: dict[str, dict[str, float]] = {}
             for d in days:
@@ -561,7 +633,10 @@ def build(settings: dict[str, Any] | None = None, body: dict[str, Any] | None = 
             total = round(sum(b["hours"] for b in by_sport.values()), 1)
             weeks.append({
                 "weekNumber": wn, "startDate": str(dates[0]), "endDate": str(dates[6]), "phase": ph["name"], "phaseKey": key,
-                "focus": "Tests and calibration" if week1 else ("Recovery week" if rec else ph["focus"].split(":")[0]),
+                "focus": "Tests and calibration" if week1 else (
+                    (f"{settings['tuneup_name']} race week" if hm == TUNEUP_WEEKS - 1 else f"{settings['tuneup_name']} block, week {hm + 1}")
+                    if hm is not None else ("Recovery week" if rec else ph["focus"].split(":")[0])),
+                "tuneup": hm is not None,
                 "targetHours": round(hours * f, 1), "isRecoveryWeek": rec, "days": days,
                 "summary": {"totalHours": total, "bySport": by_sport},
             })

@@ -58,7 +58,9 @@ async def plan_overview(svc: WhoopService, today: date | None = None) -> dict[st
     today = today or date.today()
     settings = await asyncio.to_thread(plan.load_settings)
     habits = plan.habits(ctx["workouts"])
-    week = plan.build_week(settings, habits, today)
+    psettings = await asyncio.to_thread(program.load_settings)
+    pweek = next((w for w in program.build(psettings, ctx["body"])["weeks"] if w["startDate"] <= str(today) <= w["endDate"]), None)
+    week = plan.from_program(pweek, habits, psettings["race_date"], today) if pweek else plan.build_week(settings, habits, today)
     plan.mark_done(week, ctx["workouts"])
     rec_today = ctx["recovery"].get(str(today))
     for day in week["days"]:

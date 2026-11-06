@@ -58,7 +58,7 @@ function Timeline({ data, selected, onPick }: { data: ProgramResponse; selected:
               aria-label={`Week ${w.weekNumber}, ${w.phase}${w.isRecoveryWeek ? ', recovery week' : ''}${current ? ', this week' : ''}`}
               aria-pressed={isSelected}
               className="relative min-w-0 flex-1 rounded-[3px] focus-visible:ring-2 focus-visible:ring-[var(--strain)] focus-visible:outline-none"
-              style={{ background: phaseColor(w.phaseKey), opacity: w.isRecoveryWeek ? 0.45 : 1, outline: isSelected ? '2px solid var(--ink)' : undefined, outlineOffset: 1 }}>
+              style={{ background: w.tuneup ? 'var(--strain)' : phaseColor(w.phaseKey), opacity: w.isRecoveryWeek ? 0.45 : 1, outline: isSelected ? '2px solid var(--ink)' : undefined, outlineOffset: 1 }}>
               {current && <span className="absolute -bottom-2.5 left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-[var(--strain)]" aria-hidden />}
             </button>
           )
@@ -106,7 +106,10 @@ function SettingsForm({ settings, onSaved }: { settings: ProgramSettings; onSave
         <label className={field}>Run LTHR (bpm)<input name="run_lthr" type="number" inputMode="numeric" placeholder="from 30 min test…" value={s.run_lthr ?? ''} onChange={(e) => set('run_lthr', e.target.value ? Number(e.target.value) : null)} className={input} /></label>
         <label className={field}>Bike LTHR (bpm)<input name="bike_lthr" type="number" inputMode="numeric" placeholder="from 20 min test…" value={s.bike_lthr ?? ''} onChange={(e) => set('bike_lthr', e.target.value ? Number(e.target.value) : null)} className={input} /></label>
         <label className={field}>Swim CSS (per 100 m)<input name="css" autoComplete="off" placeholder="e.g. 1:55…" value={s.css ?? ''} onChange={(e) => set('css', e.target.value || null)} className={input} /></label>
+        <label className={`${field} col-span-2`}>Tune-up half marathon<input name="tuneup_name" autoComplete="off" value={s.tuneup_name} onChange={(e) => set('tuneup_name', e.target.value)} className={input} /></label>
+        <label className={field}>Half marathon date<input name="tuneup_date" type="date" value={s.tuneup_date ?? ''} onChange={(e) => set('tuneup_date', e.target.value || null)} className={input} /></label>
       </div>
+      <p className="text-[12px] text-[var(--ink-muted)]">The 5 weeks up to the half marathon run-focused: 5 runs, 2 swims, no bike. Clear the date to go back to the triathlon plan.</p>
       {error && <p role="alert" className="text-[13px] text-[var(--critical)]">{error}</p>}
       <button onClick={save} disabled={saving} className="self-start rounded-full bg-[var(--ink)] px-4 py-1.5 text-[14px] font-medium text-[var(--surface)] disabled:opacity-60">{saving ? 'Saving…' : 'Save program settings'}</button>
     </div>
@@ -265,6 +268,7 @@ function WeekNav({ week, total, current, weeks, onGo }: { week: ProgramWeek; tot
             <span className="text-[var(--ink-muted)]">{rangeFmt.format(at(week.startDate))} – {rangeFmt.format(at(week.endDate))}</span>
             {week.weekNumber === current && <span className="rounded-full bg-[var(--strain)] px-2 py-0.5 text-[11.5px] font-medium text-white">This week</span>}
             {week.isRecoveryWeek && <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[11.5px]">Recovery week</span>}
+            {week.tuneup && <span className="rounded-full bg-[color-mix(in_srgb,var(--strain)_14%,transparent)] px-2 py-0.5 text-[11.5px] text-[var(--ink)]">Half marathon block</span>}
           </div>
         </div>
         <button onClick={() => onGo(week.weekNumber + 1)} disabled={week.weekNumber >= total} aria-label="Next week" className={arrow}><ChevronRight className="size-5" aria-hidden /></button>

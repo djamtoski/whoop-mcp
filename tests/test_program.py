@@ -134,3 +134,24 @@ def test_api_returns_the_season_and_validates_settings():
     assert r.status_code == 200 and r.json()["program"]["meta"]["totalWeeks"] == 45
     assert c.put("/api/program/settings", json={"bike": "tandem"}).json()["detail"] == "bike must be gym or road"
     assert c.put("/api/program/settings", json={"weekly_hours": 9}).json()["weekly_hours"] == 9.0
+
+
+def test_half_marathon_block_replaces_weeks_before_the_tuneup():
+    s = {**program.DEFAULTS, "tuneup_date": "2026-12-12", "tuneup_name": "Skopje Half"}
+    weeks = program.build(s)["weeks"]
+    block = [w for w in weeks if w.get("tuneup")]
+    assert [w["weekNumber"] for w in block] == [2, 3, 4, 5, 6]
+    assert not weeks[0].get("tuneup") and not weeks[6].get("tuneup")
+    for w in block:
+        sports = [x["sport"] for d in w["days"] for x in d["workouts"]]
+        assert "bike" not in sports and sports.count("swim") == (1 if w is block[-1] else 2)
+    assert [x["sport"] for d in block[0]["days"] for x in d["workouts"]].count("run") == 5
+    race = [x for d in block[-1]["days"] for x in d["workouts"] if x["sport"] == "race"]
+    assert len(race) == 1 and block[-1]["days"][5]["date"] == "2026-12-12" and race[0] in block[-1]["days"][5]["workouts"]
+
+
+def test_tuneup_date_is_validated():
+    assert program.check_settings({"tuneup_date": "2026-11-03"})  # inside week 1
+    assert program.check_settings({"tuneup_date": "2027-08-30"})  # too close to the race
+    assert program.check_settings({"tuneup_date": "2026-12-12"}) is None
+    assert program.check_settings({"tuneup_date": ""}) is None

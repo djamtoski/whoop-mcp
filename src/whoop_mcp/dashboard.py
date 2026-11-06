@@ -169,6 +169,8 @@ class ProgramSettingsIn(BaseModel):
     run_lthr: int | None = None
     bike_lthr: int | None = None
     css: str | None = None
+    tuneup_date: str | None = None
+    tuneup_name: str | None = None
 
 
 @app.get("/api/program")
