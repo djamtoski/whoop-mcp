@@ -227,3 +227,57 @@ export interface PlanResponse {
   recovery_today: number | null
   live: boolean
 }
+
+export type ProgramSport = 'swim' | 'bike' | 'run' | 'strength' | 'rest' | 'race'
+
+export interface ProgramExercise {
+  name: string; kind: 'prep' | 'main' | 'accessory' | 'core' | 'mobility'; sets: number; reps: string
+  reps_n?: number | null; rpe?: number | null; rest?: string; notes: string; per?: 'bar' | 'hand' | 'added'
+  exercise_id?: number | null
+  load?: { kg: number; per: 'bar' | 'hand' | 'added'; e1rm: number; note: string | null } | null
+}
+
+export interface ProgramWorkout {
+  id: string; sport: ProgramSport; type: string; name: string; description: string; durationMinutes: number
+  primaryZone?: string; slot: 'AM' | 'PM'; humanReadable: string; completed: boolean; doneMinutes?: number | null
+  distanceMeters?: number; letter?: string; scheme?: { sets: number; reps: number; rpe: number; label: string }
+  exercises?: ProgramExercise[]; adjustment?: { zone: Zone; action: string; note: string } | null
+}
+
+export interface ProgramWeek {
+  weekNumber: number; startDate: string; endDate: string; phase: string; phaseKey: string; focus: string
+  targetHours: number; isRecoveryWeek: boolean; tuneup?: boolean
+  days: { date: string; dayOfWeek: string; workouts: ProgramWorkout[] }[]
+  summary: { totalHours: number; bySport: Record<string, { sessions: number; hours: number }> }
+}
+
+export interface ProgramPhase { key: string; name: string; startWeek: number; endWeek: number; focus: string; keyWorkouts: string[] }
+
+export interface HrZone { zone: number; name: string; percentLow: number; percentHigh: number; hrLow: number; hrHigh: number }
+
+export interface ProgramSettings {
+  race_name: string; race_date: string; start_date: string; weekly_hours: number; bike: 'gym' | 'road'
+  run_lthr: number | null; bike_lthr: number | null; css: string | null
+  tuneup_date: string | null; tuneup_name: string
+}
+
+export interface ProgramResponse {
+  settings: ProgramSettings
+  program: {
+    meta: { event: string; eventDate: string; planStartDate: string; totalWeeks: number; generatedBy: string }
+    phases: ProgramPhase[]
+    weeks: ProgramWeek[]
+    zones: {
+      run: { hr: { lthr: number; estimated: boolean; zones: HrZone[] } }
+      bike: { hr: { lthr: number; estimated: boolean; zones: HrZone[] } }
+      swim: { css: string | null; estimated: boolean; zones: { zone: number; name: string; pace: string }[] | null }
+    }
+    raceStrategy: { pacing: Record<'swim' | 'bike' | 'run', Record<string, string>>; nutrition: { preRace: string; during: { carbsPerHour: number; fluidPerHour: string }; notes: string } }
+  }
+  today: string
+  current_week: number | null
+  recovery_today: number | null
+  maxes: Record<string, { e1rm: number; date: string; from: string; bodyweight: boolean }>
+  body_kg: number | null
+  live: boolean
+}

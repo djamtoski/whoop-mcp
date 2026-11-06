@@ -261,6 +261,28 @@ def build_week(settings: dict[str, Any], h: dict[str, Any], today: date) -> dict
     return {"phase": phase, "strength_days": strength_days, "days": days, "planned_minutes": planned}
 
 
+def from_program(pweek: dict[str, Any], h: dict[str, Any], race_date: str, today: date) -> dict[str, Any]:
+    """This week in the plan's shape, taken from the season program (which wins wherever it covers today)."""
+    days, strength_days = [], []
+    for i, d in enumerate(pweek["days"]):
+        sessions = []
+        for w in d["workouts"]:
+            if w["sport"] == "rest":
+                continue
+            if w["sport"] == "strength":
+                strength_days.append(i)
+            sessions.append({"sport": "run" if w["sport"] == "race" else w["sport"],
+                             "kind": "full body" if w["sport"] == "strength" else w["type"],
+                             "minutes": w["durationMinutes"], "intensity": w.get("primaryZone", ""),
+                             "description": f"{w['name']}: " + w["humanReadable"].replace("\n", "; "),
+                             "hour": h["hours"].get(w["sport"])})
+        days.append({"date": d["date"], "weekday": DAYS[i], "rest": not sessions, "sessions": sessions})
+    planned = {k: sum(x["minutes"] for day in days for x in day["sessions"] if x["sport"] == k) for k in ("swim", "bike", "run", "strength")}
+    phase = {"name": pweek["phase"], "weeks_to_race": (date.fromisoformat(race_date) - today).days // 7,
+             "strength_sessions": len(strength_days), "strength_min": 0, "focus": pweek["focus"] + " (from the season program)"}
+    return {"phase": phase, "strength_days": strength_days, "days": days, "planned_minutes": planned, "program_week": pweek["weekNumber"]}
+
+
 def adjust_for_recovery(session: dict[str, Any], recovery: float | None) -> dict[str, Any] | None:
     """What to do with a planned session given this morning's recovery (WHOOP zones)."""
     if recovery is None:
