@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Exercise, History, Insight, PlanResponse, StrengthSession, StrengthSummary, Summary } from './types'
+import type { Exercise, History, Insight, PlanResponse, ProgramResponse, StrengthSession, StrengthSummary, Summary } from './types'
 
 type HistoryState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: History }
 
@@ -112,6 +112,21 @@ export function usePlan() {
   const load = useCallback(async () => {
     try {
       setData(await getJson('/api/plan'))
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }, [])
+  useEffect(() => { load() }, [load])
+  return { data, error, reload: load }
+}
+
+export function useProgram() {
+  const [data, setData] = useState<ProgramResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const load = useCallback(async () => {
+    try {
+      setData(await getJson(`/api/program${isDemo ? '?demo=1' : ''}`))
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))

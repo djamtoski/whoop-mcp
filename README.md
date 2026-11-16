@@ -26,6 +26,8 @@ Claude Code ──stdio──▶ whoop_mcp serve ──▶ WHOOP API v2 (OAuth2,
 | `get_strength_progress(exercise?)` | Estimated 1RM, PRs and 4-week change per lift, weekly sets per muscle, push/pull balance, performance by recovery zone, unlogged WHOOP strength workouts |
 | `get_training_plan()` | This week's Half Ironman plan: phase, sessions per day, what's done, today's recovery adjustment, your usual week |
 | `update_training_plan(race_date?, weekly_hours?, strength_days?, ...)` | Changes race date/name, weekly hours, gym, long and rest days |
+| `get_training_program(week?)` | One week of the season program ("current", "next", a number or a date): every session with instructions and zones, strength exercises with sets × reps @ RPE and kg from your estimated 1RMs |
+| `update_training_program(race_date?, weekly_hours?, bike?, run_lthr?, bike_lthr?, css?, ...)` | Changes the season program: race, start, hours, gym or road bike, and week-1 test results |
 
 > **Strength data.** WHOOP's API and app export have no exercise-level data (sets, reps, weights), even for
 > Strength Trainer sessions. Lifts are logged in the dashboard's Strength tab or with `log_strength_session`
@@ -86,12 +88,20 @@ To run the dashboard without Claude:
 To see it without a WHOOP account, open **http://localhost:8000/?demo=1**.
 Setting `WHOOP_MCP_DEMO=1` makes the MCP tools return demo data too.
 
-The dashboard has four tabs:
+The dashboard has five tabs:
 - **Today**: live recovery, strain, sleep, 7-day trends, the workout log (7/14/28 days, strength included) and
   Claude's coaching notes.
 - **Plan**: this week's Half Ironman (70.3) plan. The phase comes from the race date (base, build, peak, taper),
   sessions are placed on the days you usually train each sport, today's sessions adjust to your recovery, and
   WHOOP workouts tick sessions off. Settings: race, date, weekly hours, gym, long-ride, long-run and rest days.
+- **Program**: the season from its start week to race day, one week and one day at a time: day tabs switch the
+  day, the arrows, phase timeline or week menu switch the week, and ← → step through days (rolling into the next
+  week). It opens on today. Built with the Claude Coach method
+  (base 1, base 2, build, peak, taper, race week; 3:1 load and recovery weeks). Each day's swim, bike and run
+  sessions have full instructions and HR or CSS zones; the full-body A/B/C strength sessions show sets × reps
+  at a target RPE and the load in kg from your estimated 1RMs (best logged sets of the last 8 weeks, RPE-aware).
+  Week 1 holds the zone tests and the lift calibration. Includes a weight × reps @ RPE → 1RM → loads calculator,
+  and *Log this session* pre-fills the Strength logger. Settings: race, dates, hours, bike, LTHR and CSS.
 - **Strength**: log full-body sessions set by set (exercises prefill from last time; Repeat last session),
   linked to the WHOOP workout. Shows e1RM progress and PRs per lift, weekly sets per muscle against a 4–12 band,
   push:pull and lower:upper, and how your lifting relates to morning recovery.

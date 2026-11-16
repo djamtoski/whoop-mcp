@@ -25,3 +25,20 @@ export function draftFromSession(s: StrengthSession, keepId = true): Draft {
     ? { id: s.id, date: s.date, whoop_workout_id: s.whoop_workout_id ?? '', notes: s.notes, blocks }
     : { ...emptyDraft(), blocks }
 }
+
+const PREFILL_KEY = 'strength-prefill'
+
+/** Hand a planned session to the Strength tab's logger (read once, then cleared). */
+export function setPrefill(d: Draft) {
+  try { sessionStorage.setItem(PREFILL_KEY, JSON.stringify(d)) } catch { /* storage unavailable */ }
+}
+
+export function takePrefill(): Draft | null {
+  try {
+    const raw = sessionStorage.getItem(PREFILL_KEY)
+    sessionStorage.removeItem(PREFILL_KEY)
+    return raw ? (JSON.parse(raw) as Draft) : null
+  } catch {
+    return null
+  }
+}
