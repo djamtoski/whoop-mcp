@@ -536,6 +536,7 @@ def strength_session(letter: str, phase: str, i: int, rec: bool, week1: bool, wn
               SHOULDER_PREP, _main(press, sets, reps + (2 if press.startswith("Incline") else 0), rpe, "2-3 min", press_note,
                                    per="hand" if press.startswith("Incline") else "bar"),
               _main("Pull-up", sets, max(reps, 5), min(rpe + 0.5, 9), "2-3 min", "Dead hang, no kipping. Load is added weight.", per="added"),
+              _acc("Dips", acc_sets, "6-10", acc_rpe, "2 min", "Slight forward lean, shoulders down. Stop above the depth where the left shoulder pinches.", 8, per="added"),
               _acc("Single-Leg Romanian Deadlift", acc_sets, "8/leg", acc_rpe, "90 s", "Right side: screw the foot into the floor.", 8, per="hand"),
               _acc("Nordic Hamstring Curl", 2, "4-6", acc_rpe, "2 min", "Slow lowering. Halves hamstring-strain risk."),
               _acc("Calf Raise", 3, "10/leg", None, "45 s", "Single leg, straight knee, 3 s lowering (gastrocnemius)."),
