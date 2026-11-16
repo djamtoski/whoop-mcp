@@ -55,6 +55,9 @@ LIBRARY: list[tuple[str, str, tuple[str, ...], str, str, bool]] = [
     ("Plank", "core", ("core",), "none", "core", True),
     ("Pallof Press", "core", ("core",), "none", "core", False),
     ("Farmer Carry", "carry", ("core", "back"), "none", "core", False),
+    ("Triceps Pushdown", "push", ("triceps",), "push", "upper", False),
+    ("EZ-Bar Curl", "pull", ("biceps",), "pull", "upper", False),
+    ("Ab Wheel Rollout", "core", ("core",), "none", "core", True),
 ]
 
 SCHEMA = """
